@@ -1,0 +1,424 @@
+"use client";
+
+import { useState } from "react";
+
+type Account = {
+  id: string;
+  name: string;
+  balance: string;
+  lastFour: string;
+  accountNumber: string;
+  routingNumber: string | null;
+  interestRate: string | null;
+  openedDate?: string;
+  accountType?: string;
+  ownership?: string;
+  monthlyFee?: string;
+  overdraftLimit?: string | null;
+  dailyTransferLimit?: string | null;
+};
+
+const ACCOUNTS: Account[] = [
+  {
+    id: "checking",
+    name: "Premium Checking",
+    balance: "$12,450.00",
+    lastFour: "4589",
+    accountNumber: "458900004589",
+    routingNumber: "123456789",
+    interestRate: "0.05% APY",
+    openedDate: "Oct 12, 2019",
+    accountType: "checking",
+    ownership: "Individual",
+    monthlyFee: "$0.00",
+    overdraftLimit: "$500.00",
+    dailyTransferLimit: "$5,000.00",
+  },
+  {
+    id: "savings",
+    name: "High Yield Savings",
+    balance: "$45,200.50",
+    lastFour: "9012",
+    accountNumber: "901200004589",
+    routingNumber: "123456789",
+    interestRate: "4.25% APY",
+    openedDate: "March 2020",
+    accountType: "savings",
+    ownership: "Individual",
+    monthlyFee: "$0.00",
+    overdraftLimit: null,
+    dailyTransferLimit: "$10,000.00",
+  },
+  {
+    id: "visa",
+    name: "Visa Infinite",
+    balance: "-$1,250.00",
+    lastFour: "3456",
+    accountNumber: "345600004589",
+    routingNumber: null,
+    interestRate: null,
+    openedDate: "Jan 2023",
+    accountType: "credit",
+    ownership: "Individual",
+    monthlyFee: "$0.00",
+    overdraftLimit: null,
+    dailyTransferLimit: null,
+  },
+];
+
+const TRANSACTIONS = [
+  { id: 1, merchant: "Whole Foods Market", date: "Jan 28, 2024", amount: "-$124.50", category: "Food", icon: "food", iconBg: "#FFEDD4" },
+  { id: 2, merchant: "Starbucks Coffee", date: "Jan 28, 2024", amount: "-$5.40", category: "Coffee", icon: "coffee", iconBg: "#FEF3C7" },
+  { id: 3, merchant: "Salary Deposit", date: "Jan 25, 2024", amount: "+$4,200.00", category: "Income", icon: "income", iconBg: "#F1F5F9" },
+  { id: 4, merchant: "Uber Ride", date: "Jan 24, 2024", amount: "-$24.00", category: "Transport", icon: "transport", iconBg: "#EDE9FE" },
+  { id: 5, merchant: "Electric Bill", date: "Jan 20, 2024", amount: "-$145.20", category: "Utilities", icon: "bill", iconBg: "#D1FAE5" },
+  { id: 6, merchant: "Target", date: "Jan 19, 2024", amount: "-$89.99", category: "Shopping", icon: "shopping", iconBg: "#E0F2FE" },
+  { id: 7, merchant: "Transfer from Savings", date: "Jan 18, 2024", amount: "+$500.00", category: "Transfer", icon: "transfer", iconBg: "#F1F5F9" },
+];
+
+function TransactionIcon({ type, bg }: { type: string; bg: string }) {
+  const cn = "h-10 w-10 shrink-0 rounded-full flex items-center justify-center";
+  switch (type) {
+    case "food":
+      return (
+        <div className={`${cn}`} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-[#F54900]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M18 8c0-3-2-4-6-4S6 5 6 8" />
+            <path d="M6 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" />
+          </svg>
+        </div>
+      );
+    case "coffee":
+      return (
+        <div className={`${cn}`} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+            <path d="M2 8h16v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8z" />
+            <line x1="6" y1="1" x2="6" y2="4" />
+            <line x1="10" y1="1" x2="10" y2="4" />
+            <line x1="14" y1="1" x2="14" y2="4" />
+          </svg>
+        </div>
+      );
+    case "income":
+      return (
+        <div className={`${cn}`} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+        </div>
+      );
+    case "transport":
+      return (
+        <div className={`${cn}`} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M5 17h14v-4H5v4zM5 12l2-4h10l2 4" />
+            <circle cx="7.5" cy="17" r="1.5" />
+            <circle cx="16.5" cy="17" r="1.5" />
+          </svg>
+        </div>
+      );
+    case "bill":
+      return (
+        <div className={`${cn}`} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
+        </div>
+      );
+    case "shopping":
+      return (
+        <div className={`${cn}`} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <circle cx="9" cy="21" r="1" />
+            <circle cx="20" cy="21" r="1" />
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+          </svg>
+        </div>
+      );
+    case "transfer":
+      return (
+        <div className={`${cn}`} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M7 17L17 7M17 7H7V17" />
+          </svg>
+        </div>
+      );
+    default:
+      return <div className={`${cn} bg-slate-100`} style={{ backgroundColor: bg || "#F1F5F9" }} />;
+  }
+}
+
+export default function AccountsPage() {
+  const [selectedId, setSelectedId] = useState<string>("checking");
+  const [tab, setTab] = useState<"transactions" | "details">("transactions");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const selected = ACCOUNTS.find((a) => a.id === selectedId) ?? ACCOUNTS[0];
+  const filteredTransactions = TRANSACTIONS.filter(
+    (tx) =>
+      tx.merchant.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-[#0F172B]">Accounts</h1>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,383px)_1fr]">
+        {/* Left: Account cards */}
+        <div className="flex flex-col gap-4">
+          {ACCOUNTS.map((acc) => {
+            const isSelected = selectedId === acc.id;
+            const isDark = isSelected;
+            return (
+              <button
+                key={acc.id}
+                type="button"
+                onClick={() => setSelectedId(acc.id)}
+                className={`flex flex-col gap-4 rounded-2xl border p-5 text-left shadow-sm transition ${
+                  isDark
+                    ? "border-[#0F172B] bg-[#0F172B] shadow-md"
+                    : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1]"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${
+                      isDark ? "bg-white/10" : "bg-[#F1F5F9]"
+                    }`}
+                  >
+                    <svg
+                      className={`h-5 w-5 ${isDark ? "text-white" : "text-[#45556C]"}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
+                      <path d="M9 22V12h6v10" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-base font-normal ${isDark ? "text-white" : "text-[#45556C]"}`}>{acc.name}</p>
+                    <p className={`text-xs font-normal ${isDark ? "text-white/60" : "text-[#90A1B9]"}`}>
+                      •••• {acc.lastFour}
+                    </p>
+                  </div>
+                </div>
+                <p className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#45556C]"}`}>
+                  {acc.balance}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: Detail panel */}
+        <div className="flex flex-col gap-6">
+          {/* Balance card */}
+          <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-8 shadow-sm">
+            <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-normal uppercase tracking-wider text-[#62748E]">Current Balance</p>
+                <p className="mt-2 text-[36px] font-bold leading-tight text-[#0F172B]">{selected.balance}</p>
+                <p className="mt-2 flex items-center gap-2 text-sm text-[#62748E]">
+                  <span>Available Balance:</span>
+                  <span className="font-medium text-[#314158]">{selected.balance}</span>
+                </p>
+              </div>
+              <div className="mt-4 flex gap-2 sm:mt-0">
+                <button
+                  type="button"
+                  className="inline-flex h-[38px] items-center justify-center rounded-[10px] bg-[#155DFC] px-4 text-sm font-medium text-white transition hover:bg-[#1247d4]"
+                >
+                  Transfer Funds
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-[38px] items-center justify-center rounded-[10px] border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#314158] transition hover:bg-[#F8FAFC]"
+                >
+                  Pay Bills
+                </button>
+              </div>
+            </div>
+
+            {/* Account details row */}
+            <div className="flex flex-wrap gap-6 border-t border-[#F1F5F9] pt-6">
+              <div>
+                <p className="text-xs font-normal text-[#90A1B9]">Account Number</p>
+                <p className="mt-1 font-mono text-sm text-[#314158]">{selected.accountNumber}</p>
+              </div>
+              {selected.routingNumber && (
+                <div>
+                  <p className="text-xs font-normal text-[#90A1B9]">Routing Number</p>
+                  <p className="mt-1 font-mono text-sm text-[#314158]">{selected.routingNumber}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs font-normal text-[#90A1B9]">Status</p>
+                <span className="mt-1 inline-flex items-center rounded bg-[#DCFCE7] px-2 py-0.5 text-xs font-normal text-[#016630]">
+                  Active
+                </span>
+              </div>
+              {selected.interestRate && (
+                <div>
+                  <p className="text-xs font-normal text-[#90A1B9]">Interest Rate</p>
+                  <p className="mt-1 text-sm font-medium text-[#314158]">{selected.interestRate}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tabs + Transactions / Details */}
+          <div className="flex-1 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+            <div className="flex border-b border-[#E2E8F0]">
+              <button
+                type="button"
+                onClick={() => setTab("transactions")}
+                className={`px-6 py-4 text-sm font-medium transition ${
+                  tab === "transactions"
+                    ? "border-b-2 border-[#155DFC] text-[#155DFC]"
+                    : "text-[#62748E] hover:text-[#0F172B]"
+                }`}
+              >
+                Transactions
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("details")}
+                className={`px-6 py-4 text-sm font-medium transition ${
+                  tab === "details"
+                    ? "border-b-2 border-[#155DFC] text-[#155DFC]"
+                    : "text-[#62748E] hover:text-[#0F172B]"
+                }`}
+              >
+                Details
+              </button>
+            </div>
+
+            <div className="p-6">
+              {tab === "transactions" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="relative flex-1">
+                      <span className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90A1B9]">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                          <circle cx="11" cy="11" r="8" />
+                          <path d="m21 21-4.35-4.35" />
+                        </svg>
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Search transactions..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="h-[38px] w-full rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC] py-2 pl-10 pr-4 text-sm text-[#0F172B] placeholder:text-[#45556C]/50 outline-none focus:border-[#155DFC]"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#45556C] transition hover:bg-[#F8FAFC]"
+                      >
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                          <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+                        </svg>
+                        Filter
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#45556C] transition hover:bg-[#F8FAFC]"
+                      >
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        Export
+                      </button>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-1">
+                    {filteredTransactions.map((tx) => (
+                      <li
+                        key={tx.id}
+                        className="flex items-center justify-between gap-4 rounded-[14px] border border-transparent px-4 py-3 transition hover:bg-[#F8FAFC]"
+                      >
+                        <div className="flex items-center gap-4">
+                          <TransactionIcon type={tx.icon} bg={tx.iconBg} />
+                          <div>
+                            <p className="font-medium text-[#0F172B]">{tx.merchant}</p>
+                            <p className="text-xs text-[#62748E]">{tx.date}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p
+                            className={`font-bold ${tx.amount.startsWith("+") ? "text-[#00C950]" : "text-[#0F172B]"}`}
+                          >
+                            {tx.amount}
+                          </p>
+                          <p className="text-xs font-normal uppercase text-[#90A1B9]">{tx.category}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {tab === "details" && (
+                <div className="flex flex-col gap-8">
+                  <div>
+                    <h3 className="mb-4 text-base font-semibold text-[#0F172B]">Account Information</h3>
+                    <dl className="space-y-4">
+                      <div className="flex flex-col gap-1">
+                        <dt className="text-sm font-normal text-[#62748E]">Opened Date</dt>
+                        <dd className="text-sm font-normal text-[#0F172B]">
+                          {selected.openedDate ?? "March 2020"}
+                        </dd>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <dt className="text-sm font-normal text-[#62748E]">Account Type</dt>
+                        <dd className="text-sm font-medium text-[#0F172B]">
+                          {selected.accountType ?? selected.name}
+                        </dd>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <dt className="text-sm font-normal text-[#62748E]">Ownership</dt>
+                        <dd className="text-sm font-normal text-[#0F172B]">
+                          {selected.ownership ?? "Individual"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div>
+                    <h3 className="mb-4 text-base font-semibold text-[#0F172B]">Fees & Limits</h3>
+                    <dl className="space-y-4">
+                      <div className="flex flex-col gap-1">
+                        <dt className="text-sm font-normal text-[#62748E]">Monthly Fee</dt>
+                        <dd className="text-sm font-normal text-[#0F172B]">
+                          {selected.monthlyFee ?? "$0.00"}
+                        </dd>
+                      </div>
+                      {selected.overdraftLimit && (
+                        <div className="flex flex-col gap-1">
+                          <dt className="text-sm font-normal text-[#62748E]">Overdraft Limit</dt>
+                          <dd className="text-sm font-normal text-[#0F172B]">{selected.overdraftLimit}</dd>
+                        </div>
+                      )}
+                      {selected.dailyTransferLimit && (
+                        <div className="flex flex-col gap-1">
+                          <dt className="text-sm font-normal text-[#62748E]">Daily Transfer Limit</dt>
+                          <dd className="text-sm font-normal text-[#0F172B]">{selected.dailyTransferLimit}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

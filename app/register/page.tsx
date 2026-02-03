@@ -6,6 +6,8 @@ import { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import SuccessModal from "../components/SuccessModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { GuestRoute } from "@/components/GuestRoute";
 
 const STEPS = [
   { id: 1, title: "Personal Information" },
@@ -96,6 +98,9 @@ const initialValues = {
 export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { register } = useAuth();
 
   const inputClassName =
     "h-[50px] w-full rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] py-3 px-4 text-[#0F172B] placeholder:text-[#90A1B9] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC]";
@@ -104,6 +109,7 @@ export default function RegisterPage() {
   const labelClassName = "block text-sm font-semibold text-[#314158] mb-2";
 
   return (
+    <GuestRoute>
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <header className="border-b border-[#F1F5F9] bg-white">
@@ -181,14 +187,39 @@ export default function RegisterPage() {
             <Formik
               initialValues={initialValues}
               validationSchema={getStepSchema(step)}
-              onSubmit={(values, { setSubmitting }) => {
+              onSubmit={async (values, { setSubmitting }) => {
                 if (step < 3) {
                   setStep(step + 1);
                   setSubmitting(false);
                 } else {
-                  // Final submit - in real app would call API
-                  setShowSuccessModal(true);
-                  setSubmitting(false);
+                  // Final submit - call API
+                  setIsSubmitting(true);
+                  setError(null);
+                  try {
+                    const result = await register({
+                      firstName: values.firstName,
+                      lastName: values.lastName,
+                      dateOfBirth: values.dateOfBirth,
+                      ssn: values.ssn,
+                      email: values.email,
+                      phone: values.phone,
+                      address: {
+                        street: values.street,
+                        city: values.city,
+                        state: values.state,
+                        zip: values.zip,
+                      },
+                      accountType: values.accountType,
+                      password: values.password,
+                    });
+                    setShowSuccessModal(true);
+                    setSubmitting(false);
+                    setIsSubmitting(false);
+                  } catch (err: any) {
+                    setError(err.message || 'Registration failed. Please try again.');
+                    setSubmitting(false);
+                    setIsSubmitting(false);
+                  }
                 }
               }}
               validateOnChange={true}
@@ -418,19 +449,26 @@ export default function RegisterPage() {
                         </label>
                         <ErrorMessage name="agreeTerms" component="p" className="mt-1 text-xs text-red-500" />
                       </div>
+                      {error && (
+                        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+                          <p className="text-sm text-red-600">{error}</p>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-4">
                         <button
                           type="button"
                           onClick={() => setStep(2)}
                           className="text-base font-semibold text-[#0F172B] hover:text-[#155DFC]"
+                          disabled={isSubmitting}
                         >
                           Back
                         </button>
                         <button
                           type="submit"
+                          disabled={isSubmitting}
                           className="flex h-[50px] min-w-[180px] items-center justify-center gap-2 rounded-[14px] bg-[#155DFC] font-bold text-white shadow-sm transition hover:bg-[#1248d4] disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Create Account
+                          {isSubmitting ? 'Creating...' : 'Create Account'}
                         </button>
                       </div>
                     </>
@@ -453,10 +491,11 @@ export default function RegisterPage() {
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         title="Account Created!"
-        message="Your VyrBank account has been successfully created. You can now sign in to access your account."
+        message="We've sent a welcome email with your account number. Check your inbox and use it to sign in."
         actionLabel="Continue to Sign In"
         actionHref="/#login"
       />
     </div>
+    </GuestRoute>
   );
 }

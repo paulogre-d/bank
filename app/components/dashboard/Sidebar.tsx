@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -75,6 +76,17 @@ interface SidebarProps {
 
 export default function Sidebar({ onMenuClick, onLinkClick }: SidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-[#E2E8F0] bg-white">
@@ -142,6 +154,7 @@ export default function Sidebar({ onMenuClick, onLinkClick }: SidebarProps) {
       <div className="border-t border-[#F1F5F9] px-4 pt-4">
         <button
           type="button"
+          onClick={handleSignOut}
           className="flex h-12 w-full items-center gap-3 rounded-[10px] px-4 text-left transition hover:bg-[#F8FAFC]"
         >
           <Image

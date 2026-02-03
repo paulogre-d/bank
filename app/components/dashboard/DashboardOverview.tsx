@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import {
   IconAdd,
@@ -11,6 +12,12 @@ import {
   IconScan,
   IconStatements,
 } from "./icons";
+import { useAuthStore } from "@/store/auth";
+import {
+  useDashboardStore,
+  type DashboardAccount,
+  type DashboardTransaction,
+} from "@/store/dashboard";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -37,13 +44,29 @@ const chartData = [
   { day: "Sun", value: 70 },
 ];
 
-const RECENT_TRANSACTIONS = [
-  { id: 1, merchant: "Whole Foods Market", date: "Jan 28, 2024", amount: "-$124.50", category: "Food", iconBg: "#FFEDD4" },
-  { id: 2, merchant: "Starbucks Coffee", date: "Jan 28, 2024", amount: "-$5.40", category: "Coffee", iconBg: "#FEF3C7" },
-  { id: 3, merchant: "Salary Deposit", date: "Jan 25, 2024", amount: "+$4,200.00", category: "Income", iconBg: "#F1F5F9" },
-  { id: 4, merchant: "Uber Ride", date: "Jan 24, 2024", amount: "-$24.00", category: "Transport", iconBg: "#EDE9FE" },
-  { id: 5, merchant: "Electric Bill", date: "Jan 20, 2024", amount: "-$145.20", category: "Utilities", iconBg: "#D1FAE5" },
-];
+const CATEGORY_ICON_BG: Record<string, string> = {
+  food: "#FFEDD4",
+  coffee: "#FEF3C7",
+  income: "#F1F5F9",
+  transport: "#EDE9FE",
+  utilities: "#D1FAE5",
+  transfer: "#F1F5F9",
+};
+function getIconBg(category: string) {
+  return CATEGORY_ICON_BG[category.toLowerCase()] ?? "#F1F5F9";
+}
+
+function formatCurrency(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "+";
+  return `${sign}$${abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatBalance(value: number): string {
+  return value < 0
+    ? `-$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 function TransactionIcon({ type, bg }: { type: string; bg: string }) {
   const cn = "h-10 w-10 shrink-0 rounded-full flex items-center justify-center";
@@ -100,16 +123,121 @@ function TransactionIcon({ type, bg }: { type: string; bg: string }) {
   }
 }
 
+function AccountCard({
+  account,
+  variant,
+  href,
+}: {
+  account: DashboardAccount;
+  variant: "blue" | "white" | "dark";
+  href: string;
+}) {
+  const isDark = variant === "dark";
+  const isBlue = variant === "blue";
+  const balanceStr = formatBalance(account.balance);
+
+  const cardClass =
+    variant === "blue"
+      ? "overflow-hidden rounded-2xl bg-[linear-gradient(135deg,rgba(21,93,252,1)_0%,rgba(20,71,230,1)_100%)] p-6 shadow-lg transition hover:opacity-95"
+      : variant === "dark"
+        ? "overflow-hidden rounded-2xl bg-[#0F172B] p-6 shadow-lg transition hover:opacity-95"
+        : "overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm transition hover:border-[#155DFC]/30";
+
+  const textPrimary = isDark || isBlue ? "text-white" : "text-[#1D293D]";
+  const textSecondary = isDark || isBlue ? "text-white/80" : "text-[#62748E]";
+  const textMuted = isDark || isBlue ? "text-white/60" : "text-[#62748E]/60";
+
+  return (
+    <Link href={href} className={cardClass}>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <p className={`text-sm font-normal ${textSecondary}`}>{account.name}</p>
+          <p className={`text-2xl font-bold tracking-tight ${textPrimary}`}>{balanceStr}</p>
+        </div>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className={`rounded-full p-1.5 ${isDark || isBlue ? "text-white/80 hover:bg-white/10" : "text-[#62748E] hover:bg-slate-100"}`}
+          aria-label="More options"
+        >
+          <IconMore className={isDark || isBlue ? "text-white" : "text-[#62748E]"} />
+        </button>
+      </div>
+      <div className="flex items-end justify-between">
+        <p className={`text-sm ${textMuted}`}>•••• {account.lastFour}</p>
+        {account.accountType !== "credit" && account.balance >= 0 && (
+          <div className="flex items-center gap-2 rounded-full bg-[rgba(0,201,80,0.2)] px-3 py-1">
+            <IconChartUp className="text-[#00C950]" />
+            <span className="text-sm font-semibold text-[#00C950]">—</span>
+          </div>
+        )}
+        {account.accountType === "credit" && <div className="rounded-full bg-white/10 px-3 py-1 shadow-sm" />}
+      </div>
+    </Link>
+  );
+}
+
 export default function DashboardOverview() {
-  const maxValue = Math.max(...chartData.map((d) => d.value));
+  const user = useAuthStore((s) => s.user);
+  const accounts = useDashboardStore((s) => s.accounts);
+  const recentTransactions = useDashboardStore((s) => s.recentTransactions);
+  const spendingAnalytics = useDashboardStore((s) => s.spendingAnalytics);
+  const loading = useDashboardStore((s) => s.loading);
+  const error = useDashboardStore((s) => s.error);
+  const fetchOverview = useDashboardStore((s) => s.fetchOverview);
+
+  useEffect(() => {
+    if (user) {
+      fetchOverview();
+    }
+  }, [user, fetchOverview]);
+
+  const firstName = user?.firstName ?? "";
+  const maxValue = Math.max(spendingAnalytics.thisWeek, 1);
+  const chartHeights = chartData.map((d, i) => (d.value / 100) * (spendingAnalytics.thisWeek || 0));
+
+  if (loading && accounts.length === 0) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#155DFC] border-r-transparent" />
+          <p className="text-[#45556C]">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && accounts.length === 0) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+        <p className="text-red-600">{error}</p>
+        <button
+          type="button"
+          onClick={() => fetchOverview()}
+          className="mt-4 rounded-lg bg-[#155DFC] px-4 py-2 text-sm font-medium text-white hover:bg-[#1248d4]"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const cardVariants: ("blue" | "white" | "dark")[] = ["blue", "white", "dark"];
+  const accountCards = accounts.slice(0, 3).map((acc, i) => (
+    <AccountCard
+      key={acc.id}
+      account={acc}
+      variant={cardVariants[i % 3]}
+      href={acc.accountType === "credit" ? "/dashboard/cards" : "/dashboard/accounts"}
+    />
+  ));
 
   return (
     <div className="space-y-8">
-      {/* Header - exactly per Figma */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0F172B]">
-            {getGreeting()}, David
+            {getGreeting()}{firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="mt-1 text-base text-[#62748E]">
             Here&apos;s what&apos;s happening with your money today.
@@ -124,88 +252,15 @@ export default function DashboardOverview() {
         </Link>
       </div>
 
-      {/* Account Cards - exact Figma layout */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Premium Checking - gradient blue card */}
-        <Link
-          href="/dashboard/accounts"
-          className="overflow-hidden rounded-2xl bg-[linear-gradient(135deg,rgba(21,93,252,1)_0%,rgba(20,71,230,1)_100%)] p-6 shadow-lg transition hover:opacity-95"
-        >
-          <div className="mb-8 flex items-start justify-between">
-            <div>
-              <p className="text-sm font-normal text-white/80">Premium Checking</p>
-              <p className="text-2xl font-bold tracking-tight text-white">$12,450.00</p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-full p-1.5 text-white/80 hover:bg-white/10"
-              aria-label="More options"
-            >
-              <IconMore className="text-white" />
-            </button>
-          </div>
-          <div className="flex items-end justify-between">
-            <p className="text-sm text-white/60">•••• 4589</p>
-            <div className="flex items-center gap-2 rounded-full bg-[rgba(0,201,80,0.2)] px-3 py-1">
-              <IconChartUp className="text-[#00C950]" />
-              <span className="text-sm font-semibold text-[#00C950]">12%</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* High Yield Savings - white card */}
-        <Link
-          href="/dashboard/accounts"
-          className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm transition hover:border-[#155DFC]/30"
-        >
-          <div className="mb-8 flex items-start justify-between">
-            <div>
-              <p className="text-sm font-normal text-[#62748E]">High Yield Savings</p>
-              <p className="text-2xl font-bold tracking-tight text-[#1D293D]">$45,200.50</p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-full p-1.5 text-[#62748E] hover:bg-slate-100"
-              aria-label="More options"
-            >
-              <IconMore className="text-[#62748E]" />
-            </button>
-          </div>
-          <div className="flex items-end justify-between">
-            <p className="text-sm text-[#62748E]/60">•••• 9012</p>
-            <div className="flex items-center gap-2 rounded-full bg-[rgba(0,201,80,0.2)] px-3 py-1">
-              <IconChartUp className="text-[#00C950]" />
-              <span className="text-sm font-semibold text-[#00C950]">5%</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Visa Infinite - dark card */}
-        <Link
-          href="/dashboard/cards"
-          className="overflow-hidden rounded-2xl bg-[#0F172B] p-6 shadow-lg transition hover:opacity-95"
-        >
-          <div className="mb-8 flex items-start justify-between">
-            <div>
-              <p className="text-sm font-normal text-white/80">Visa Infinite</p>
-              <p className="text-2xl font-bold tracking-tight text-white">-$1,250.00</p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-full p-1.5 text-white/80 hover:bg-white/10"
-              aria-label="More options"
-            >
-              <IconMore className="text-white" />
-            </button>
-          </div>
-          <div className="flex items-end justify-between">
-            <p className="text-sm text-white/60">•••• 3456</p>
-            <div className="rounded-full bg-white/10 px-3 py-1 shadow-sm" />
-          </div>
-        </Link>
+        {accountCards.length > 0 ? accountCards : (
+          <Link
+            href="/dashboard/accounts"
+            className="flex min-h-[160px] items-center justify-center rounded-2xl border-2 border-dashed border-[#E2E8F0] bg-[#F8FAFC] text-[#62748E] transition hover:border-[#155DFC]/50"
+          >
+            Add your first account
+          </Link>
+        )}
       </div>
 
       {/* Two-column: Quick Actions + Analytics | Recent Transactions */}
@@ -294,28 +349,32 @@ export default function DashboardOverview() {
             </Link>
           </div>
           <ul className="space-y-2">
-            {RECENT_TRANSACTIONS.map((tx) => (
-              <li
-                key={tx.id}
-                className="flex items-center justify-between gap-4 rounded-[14px] border border-transparent px-4 py-3 transition hover:bg-[#F8FAFC]"
-              >
-                <div className="flex items-center gap-4">
-                  <TransactionIcon type={tx.category.toLowerCase()} bg={tx.iconBg} />
-                  <div>
-                    <p className="font-medium text-[#0F172B]">{tx.merchant}</p>
-                    <p className="text-xs text-[#62748E]">{tx.date}</p>
+            {recentTransactions.length > 0 ? (
+              recentTransactions.map((tx) => (
+                <li
+                  key={tx.id}
+                  className="flex items-center justify-between gap-4 rounded-[14px] border border-transparent px-4 py-3 transition hover:bg-[#F8FAFC]"
+                >
+                  <div className="flex items-center gap-4">
+                    <TransactionIcon type={tx.category.toLowerCase()} bg={getIconBg(tx.category)} />
+                    <div>
+                      <p className="font-medium text-[#0F172B]">{tx.merchant}</p>
+                      <p className="text-xs text-[#62748E]">{tx.date}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p
-                    className={`font-bold ${tx.amount.startsWith("+") ? "text-[#00C950]" : "text-[#0F172B]"}`}
-                  >
-                    {tx.amount}
-                  </p>
-                  <p className="text-xs font-normal text-[#90A1B9]">{tx.category}</p>
-                </div>
-              </li>
-            ))}
+                  <div className="text-right">
+                    <p
+                      className={`font-bold ${tx.amount >= 0 ? "text-[#00C950]" : "text-[#0F172B]"}`}
+                    >
+                      {formatCurrency(tx.amount)}
+                    </p>
+                    <p className="text-xs font-normal text-[#90A1B9]">{tx.category}</p>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <li className="py-8 text-center text-sm text-[#62748E]">No recent transactions</li>
+            )}
           </ul>
         </section>
       </div>

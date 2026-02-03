@@ -1,8 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import LoginForm from "./components/LoginForm";
+import { GuestRoute } from "@/components/GuestRoute";
 
 export default function Home() {
   return (
+    <GuestRoute>
     <div className="min-h-screen bg-white">
       {/* Header - styled per Figma node 735-3542 */}
       <header className="sticky top-0 z-50 border-b border-[#F1F5F9] bg-white/90 backdrop-blur-sm">
@@ -366,5 +370,6 @@ export default function Home() {
         </footer>
       </main>
     </div>
+    </GuestRoute>
   );
 }

@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       },
       customToken, // Client should exchange this for ID token using Firebase Auth
     });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Login error:', error);
     return errorResponse(error.message || 'Login failed', 500, 'LOGIN_ERROR');

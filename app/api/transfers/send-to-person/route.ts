@@ -131,6 +131,10 @@ export async function POST(request: NextRequest) {
 
       const timestamp = FieldValue.serverTimestamp();
 
+      // Get account names for merchant field
+      const fromAccountName = fromAccount.name || 'Account';
+      const beneficiaryName = `${beneficiaryUser.firstName} ${beneficiaryUser.lastName}`;
+
       // Create transaction records
       const fromTransactionData = {
         referenceId,
@@ -142,6 +146,8 @@ export async function POST(request: NextRequest) {
         status: 'completed',
         frequency: frequency || 'One-time Transfer',
         scheduledDate: scheduledDate || null,
+        merchant: `Transfer to ${beneficiaryName}`,
+        category: 'transfer',
         timestamp,
         createdAt: timestamp,
       };
@@ -152,6 +158,7 @@ export async function POST(request: NextRequest) {
         fromAccountId: toAccountId,
         toAccountId: fromAccountId,
         fromAccountNumber: fromAccount.accountNumber,
+        merchant: `Transfer from ${fromAccountName}`,
       };
 
       const fromTransactionRef = adminDb.collection('transactions').doc();

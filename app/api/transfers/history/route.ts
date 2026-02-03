@@ -48,33 +48,54 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch transactions (both incoming and outgoing)
-    // Note: Firestore 'in' queries are limited to 10 items, so we need to handle this differently
-    // For now, we'll fetch transactions where the account is the source
-    let transactionsQuery = adminDb
-      .collection('transactions')
-      .where('fromAccountId', 'in', accountIds.slice(0, 10))
-      .orderBy('timestamp', 'desc')
-      .limit(limit + offset);
+    // Note: Firestore 'in' queries are limited to 10 items
+    // We fetch without orderBy to avoid composite index requirement, then sort in memory
+    let outgoingTransactions: any[] = [];
+    let incomingTransactions: any[] = [];
 
-    const transactionsSnapshot = await transactionsQuery.get();
-    
-    // Also fetch incoming transactions
-    let incomingQuery = adminDb
-      .collection('transactions')
-      .where('toAccountId', 'in', accountIds.slice(0, 10))
-      .orderBy('timestamp', 'desc')
-      .limit(limit + offset);
+    if (accountIds.length > 0) {
+      // Fetch outgoing transactions (where account is source)
+      const outgoingQuery = adminDb
+        .collection('transactions')
+        .where('fromAccountId', 'in', accountIds.slice(0, 10))
+        .limit(100); // Fetch more to ensure we have enough after sorting
 
-    const incomingSnapshot = await incomingQuery.get();
+      const outgoingSnapshot = await outgoingQuery.get();
+      outgoingTransactions = outgoingSnapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+        source: 'outgoing',
+      }));
 
-    // Combine and sort transactions
-    const allTransactions = [
-      ...transactionsSnapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id, source: 'outgoing' })),
-      ...incomingSnapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id, source: 'incoming' })),
-    ].sort((a, b) => {
+      // Fetch incoming transactions (where account is destination)
+      const incomingQuery = adminDb
+        .collection('transactions')
+        .where('toAccountId', 'in', accountIds.slice(0, 10))
+        .limit(100);
+
+      const incomingSnapshot = await incomingQuery.get();
+      incomingTransactions = incomingSnapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+        source: 'incoming',
+      }));
+    }
+
+    // Combine and sort transactions by timestamp
+    const combined = [...outgoingTransactions, ...incomingTransactions].sort((a, b) => {
       const aTime = a.timestamp?.toDate?.() || new Date(0);
       const bTime = b.timestamp?.toDate?.() || new Date(0);
       return bTime.getTime() - aTime.getTime();
+    });
+
+    // Deduplicate by referenceId: each transfer creates two records (sender + receiver).
+    // Show one row per transfer by keeping the first occurrence of each referenceId.
+    const seenRefIds = new Set<string>();
+    const allTransactions = combined.filter((tx) => {
+      const refId = tx.referenceId ?? tx.id;
+      if (seenRefIds.has(refId)) return false;
+      seenRefIds.add(refId);
+      return true;
     });
 
     // Apply pagination
@@ -108,6 +129,8 @@ export async function GET(request: NextRequest) {
             : null,
           amount: tx.amount,
           status: tx.status,
+          merchant: tx.merchant || 'Transfer',
+          category: tx.category || 'transfer',
           timestamp: tx.timestamp?.toDate?.()?.toISOString() || new Date().toISOString(),
         };
       })

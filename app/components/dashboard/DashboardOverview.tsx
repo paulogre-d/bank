@@ -16,7 +16,6 @@ import { useAuthStore } from "@/store/auth";
 import {
   useDashboardStore,
   type DashboardAccount,
-  type DashboardTransaction,
 } from "@/store/dashboard";
 
 function getGreeting() {
@@ -194,7 +193,6 @@ export default function DashboardOverview() {
 
   const firstName = user?.firstName ?? "";
   const maxValue = Math.max(spendingAnalytics.thisWeek, 1);
-  const chartHeights = chartData.map((d, i) => (d.value / 100) * (spendingAnalytics.thisWeek || 0));
 
   if (loading && accounts.length === 0) {
     return (
@@ -311,18 +309,21 @@ export default function DashboardOverview() {
                 ))}
               </div>
               <div className="flex flex-1 flex-col">
-                <div className="flex h-52 flex-1 items-end gap-1">
-                  {chartData.map((d) => (
-                    <div
-                      key={d.day}
-                      className="flex flex-1 flex-col items-center gap-1"
-                    >
+                <div className="flex h-40 items-end gap-1">
+                  {chartData.map((d) => {
+                    const barHeight = maxValue > 0 ? Math.min((d.value / maxValue) * 160, 160) : 0;
+                    return (
                       <div
-                        className="w-full rounded-t bg-[linear-gradient(180deg,rgba(21,93,252,0.3)_0%,rgba(21,93,252,0.05)_100%)] transition-all"
-                        style={{ height: `${(d.value / maxValue) * 180}px` }}
-                      />
-                    </div>
-                  ))}
+                        key={d.day}
+                        className="flex flex-1 flex-col items-center gap-1"
+                      >
+                        <div
+                          className="w-full rounded-t bg-[linear-gradient(180deg,rgba(21,93,252,0.3)_0%,rgba(21,93,252,0.05)_100%)] transition-all"
+                          style={{ height: `${barHeight}px`, minHeight: '4px' }}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="flex justify-around gap-1 pt-2 text-xs text-[#94A3B8]">
                   {chartData.map((d) => (
@@ -335,7 +336,7 @@ export default function DashboardOverview() {
         </div>
 
         {/* Recent Transactions */}
-        <section className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+        <section className="flex flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#0F172B]">Recent Transactions</h2>
             <Link
@@ -348,9 +349,9 @@ export default function DashboardOverview() {
               </svg>
             </Link>
           </div>
-          <ul className="space-y-2">
+          <ul className="max-h-[500px] space-y-2 overflow-y-auto">
             {recentTransactions.length > 0 ? (
-              recentTransactions.map((tx) => (
+              recentTransactions.slice(0, 10).map((tx) => (
                 <li
                   key={tx.id}
                   className="flex items-center justify-between gap-4 rounded-[14px] border border-transparent px-4 py-3 transition hover:bg-[#F8FAFC]"

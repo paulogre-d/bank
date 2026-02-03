@@ -1,27 +1,45 @@
 "use client";
 
+import { useAuthStore } from "@/store/auth";
+
 interface TopNavProps {
   onMenuClick: () => void;
   sidebarCollapsed?: boolean;
 }
 
+function getInitials(firstName?: string, lastName?: string): string {
+  const first = firstName?.charAt(0).toUpperCase() || "";
+  const last = lastName?.charAt(0).toUpperCase() || "";
+  return first + last || "U";
+}
+
 export default function TopNav({ onMenuClick, sidebarCollapsed = true }: TopNavProps) {
+  const user = useAuthStore((s) => s.user);
+
+  const displayName = user
+    ? `${user.firstName} ${user.lastName}`
+    : "User";
+  const initials = getInitials(user?.firstName, user?.lastName);
+  const accountDisplay = user?.accountNumber
+    ? `•••• ${user.accountNumber.slice(-4)}`
+    : "Account";
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#F1F5F9] bg-white px-4 lg:px-8">
       {/* Hamburger - when sidebar is collapsed (mobile) or user collapsed it (desktop) */}
       {sidebarCollapsed && (
-      <button
-        type="button"
-        onClick={onMenuClick}
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-[#45556C] transition hover:bg-slate-100 hover:text-[#0F172B]"
-        aria-label="Toggle sidebar"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-[#45556C] transition hover:bg-slate-100 hover:text-[#0F172B]"
+          aria-label="Toggle sidebar"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
       )}
       <div className="flex flex-1 items-center justify-end gap-2">
         {/* Search */}
@@ -51,11 +69,11 @@ export default function TopNav({ onMenuClick, sidebarCollapsed = true }: TopNavP
         {/* User avatar - desktop */}
         <div className="hidden items-center gap-3 rounded-xl border border-[#E2E8F0] px-3 py-2 lg:flex">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#155DFC] text-xs font-bold text-white">
-            JD
+            {initials}
           </div>
           <div className="text-left">
-            <p className="text-sm font-semibold text-[#0F172B]">John Doe</p>
-            <p className="text-xs text-[#45556C]">Premium</p>
+            <p className="text-sm font-semibold text-[#0F172B]">{displayName}</p>
+            <p className="text-xs text-[#45556C]">{accountDisplay}</p>
           </div>
         </div>
       </div>

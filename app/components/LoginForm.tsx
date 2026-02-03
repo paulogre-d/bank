@@ -1,12 +1,16 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
+import { useAuth } from "@/contexts/AuthContext";
 
 const loginSchema = Yup.object().shape({
   accountNumber: Yup.string()
-    .min(8, "Account number must be at least 8 characters")
+    .length(12, "Account number must be exactly 12 digits")
+    .matches(/^\d+$/, "Account number must contain only digits")
     .required("Account number is required"),
   password: Yup.string()
     .min(6, "Password must be at least 6 characters")
@@ -20,6 +24,11 @@ const initialValues = {
 };
 
 export default function LoginForm() {
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login } = useAuth();
+  const router = useRouter();
+
   const inputClassName =
     "h-[50px] w-full rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] py-3 pl-12 pr-3 text-[#0F172B] placeholder:text-[#90A1B9] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC]";
   const inputErrorClassName =
@@ -35,9 +44,21 @@ export default function LoginForm() {
       <Formik
         initialValues={initialValues}
         validationSchema={loginSchema}
-        onSubmit={(values) => {
-          // In real app would call API
-          alert(`Login submitted! (Demo)\n\nAccount: ${values.accountNumber}`);
+        onSubmit={async (values, { setSubmitting }) => {
+          setError(null);
+          setIsSubmitting(true);
+          try {
+            await login({
+              accountNumber: values.accountNumber,
+              password: values.password,
+            });
+            // Redirect to dashboard on success
+            router.push('/dashboard');
+          } catch (err: any) {
+            setError(err.message || 'Login failed. Please check your credentials and try again.');
+            setSubmitting(false);
+            setIsSubmitting(false);
+          }
         }}
         validateOnChange={true}
         validateOnBlur={true}
@@ -92,6 +113,11 @@ export default function LoginForm() {
               </div>
               <ErrorMessage name="password" component="p" className="text-xs text-red-500" />
             </div>
+            {error && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <label className="flex cursor-pointer items-center gap-2">
                 <Field
@@ -107,10 +133,11 @@ export default function LoginForm() {
             </div>
             <button
               type="submit"
-              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#155DFC] px-4 font-bold text-white shadow-sm transition hover:bg-[#1248d4]"
+              disabled={isSubmitting}
+              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#155DFC] px-4 font-bold text-white shadow-sm transition hover:bg-[#1248d4] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Sign In
-              <Image src="/images/icon-arrow-right.svg" alt="" width={16} height={16} />
+              {isSubmitting ? 'Signing In...' : 'Sign In'}
+              {!isSubmitting && <Image src="/images/icon-arrow-right.svg" alt="" width={16} height={16} />}
             </button>
           </Form>
         )}

@@ -1,80 +1,87 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useAccounts, useTransferHistory } from "@/lib/api/hooks";
+import { AccountsSkeleton } from "@/components/skeletons/AccountsSkeleton";
+import { InlineError } from "@/components/InlineError";
 
 type Account = {
   id: string;
   name: string;
-  balance: string;
+  balance: number;
   lastFour: string;
   accountNumber: string;
   routingNumber: string | null;
-  interestRate: string | null;
-  openedDate?: string;
-  accountType?: string;
-  ownership?: string;
-  monthlyFee?: string;
-  overdraftLimit?: string | null;
-  dailyTransferLimit?: string | null;
+  interestRate: number | null;
+  openedDate: string | null;
+  accountType: string;
+  ownership: string;
+  monthlyFee: number;
+  overdraftLimit: number | null;
+  dailyTransferLimit: number | null;
+  status: string;
 };
 
-const ACCOUNTS: Account[] = [
-  {
-    id: "checking",
-    name: "Premium Checking",
-    balance: "$12,450.00",
-    lastFour: "4589",
-    accountNumber: "458900004589",
-    routingNumber: "123456789",
-    interestRate: "0.05% APY",
-    openedDate: "Oct 12, 2019",
-    accountType: "checking",
-    ownership: "Individual",
-    monthlyFee: "$0.00",
-    overdraftLimit: "$500.00",
-    dailyTransferLimit: "$5,000.00",
-  },
-  {
-    id: "savings",
-    name: "High Yield Savings",
-    balance: "$45,200.50",
-    lastFour: "9012",
-    accountNumber: "901200004589",
-    routingNumber: "123456789",
-    interestRate: "4.25% APY",
-    openedDate: "March 2020",
-    accountType: "savings",
-    ownership: "Individual",
-    monthlyFee: "$0.00",
-    overdraftLimit: null,
-    dailyTransferLimit: "$10,000.00",
-  },
-  {
-    id: "visa",
-    name: "Visa Infinite",
-    balance: "-$1,250.00",
-    lastFour: "3456",
-    accountNumber: "345600004589",
-    routingNumber: null,
-    interestRate: null,
-    openedDate: "Jan 2023",
-    accountType: "credit",
-    ownership: "Individual",
-    monthlyFee: "$0.00",
-    overdraftLimit: null,
-    dailyTransferLimit: null,
-  },
-];
+type Transaction = {
+  id: string;
+  merchant: string;
+  date: string;
+  amount: number;
+  category: string;
+};
 
-const TRANSACTIONS = [
-  { id: 1, merchant: "Whole Foods Market", date: "Jan 28, 2024", amount: "-$124.50", category: "Food", icon: "food", iconBg: "#FFEDD4" },
-  { id: 2, merchant: "Starbucks Coffee", date: "Jan 28, 2024", amount: "-$5.40", category: "Coffee", icon: "coffee", iconBg: "#FEF3C7" },
-  { id: 3, merchant: "Salary Deposit", date: "Jan 25, 2024", amount: "+$4,200.00", category: "Income", icon: "income", iconBg: "#F1F5F9" },
-  { id: 4, merchant: "Uber Ride", date: "Jan 24, 2024", amount: "-$24.00", category: "Transport", icon: "transport", iconBg: "#EDE9FE" },
-  { id: 5, merchant: "Electric Bill", date: "Jan 20, 2024", amount: "-$145.20", category: "Utilities", icon: "bill", iconBg: "#D1FAE5" },
-  { id: 6, merchant: "Target", date: "Jan 19, 2024", amount: "-$89.99", category: "Shopping", icon: "shopping", iconBg: "#E0F2FE" },
-  { id: 7, merchant: "Transfer from Savings", date: "Jan 18, 2024", amount: "+$500.00", category: "Transfer", icon: "transfer", iconBg: "#F1F5F9" },
-];
+function formatBalance(value: number): string {
+  return value < 0
+    ? `-$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatCurrency(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "+";
+  return `${sign}$${abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatDate(dateString: string | null): string {
+  if (!dateString) return "—";
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return dateString;
+  }
+}
+
+function formatInterestRate(rate: number | null): string {
+  if (rate === null) return "—";
+  return `${rate.toFixed(2)}% APY`;
+}
+
+const CATEGORY_ICON_BG: Record<string, string> = {
+  food: "#FFEDD4",
+  coffee: "#FEF3C7",
+  income: "#F1F5F9",
+  transport: "#EDE9FE",
+  utilities: "#D1FAE5",
+  transfer: "#F1F5F9",
+  shopping: "#E0F2FE",
+};
+
+function getIconBg(category: string): string {
+  return CATEGORY_ICON_BG[category.toLowerCase()] ?? "#F1F5F9";
+}
+
+function getCategoryIcon(category: string): string {
+  const cat = category.toLowerCase();
+  if (cat === "food") return "food";
+  if (cat === "coffee") return "coffee";
+  if (cat === "income") return "income";
+  if (cat === "transport") return "transport";
+  if (cat === "utilities" || cat === "bill") return "bill";
+  if (cat === "shopping") return "shopping";
+  return "transfer";
+}
 
 function TransactionIcon({ type, bg }: { type: string; bg: string }) {
   const cn = "h-10 w-10 shrink-0 rounded-full flex items-center justify-center";
@@ -149,17 +156,106 @@ function TransactionIcon({ type, bg }: { type: string; bg: string }) {
   }
 }
 
+function mapApiAccountToAccount(a: {
+  id: string;
+  name: string;
+  balance: number;
+  lastFour?: string;
+  accountNumber?: string;
+  routingNumber: string | null;
+  interestRate: number | null;
+  openedDate: string | null;
+  accountType: string;
+  ownership?: string;
+  monthlyFee: number;
+  overdraftLimit: number | null;
+  dailyTransferLimit: number | null;
+  status: string;
+}): Account {
+  return {
+    id: a.id,
+    name: a.name,
+    balance: a.balance || 0,
+    lastFour: a.lastFour ?? a.accountNumber?.slice(-4) ?? "",
+    accountNumber: a.accountNumber ?? "",
+    routingNumber: a.routingNumber,
+    interestRate: a.interestRate,
+    openedDate: a.openedDate,
+    accountType: a.accountType,
+    ownership: a.ownership || "Individual",
+    monthlyFee: a.monthlyFee || 0,
+    overdraftLimit: a.overdraftLimit,
+    dailyTransferLimit: a.dailyTransferLimit,
+    status: a.status || "active",
+  };
+}
+
 export default function AccountsPage() {
-  const [selectedId, setSelectedId] = useState<string>("checking");
+  const [selectedId, setSelectedId] = useState<string>("");
   const [tab, setTab] = useState<"transactions" | "details">("transactions");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const selected = ACCOUNTS.find((a) => a.id === selectedId) ?? ACCOUNTS[0];
-  const filteredTransactions = TRANSACTIONS.filter(
+  const { data: accountsData, isLoading: accountsLoading, isError: accountsError, error: accountsErr, refetch: refetchAccounts } = useAccounts();
+  const accounts = (accountsData ?? []).map(mapApiAccountToAccount);
+
+  const effectiveSelectedId =
+    (selectedId && accounts.some((a) => a.id === selectedId)) ? selectedId : (accounts[0]?.id ?? "");
+  const { data: txData, isLoading: transactionsLoading, isError: transactionsError, error: transactionsErr, refetch: refetchTransactions } = useTransferHistory(effectiveSelectedId || undefined, 50);
+  const transactions: Transaction[] = (txData?.transactions ?? []).map((tx) => ({
+    id: tx.id,
+    merchant: tx.merchant || "Transfer",
+    date: tx.timestamp
+      ? new Date(tx.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "—",
+    amount: tx.amount,
+    category: tx.category || "transfer",
+  }));
+
+  const selected = accounts.find((a) => a.id === effectiveSelectedId);
+  const filteredTransactions = transactions.filter(
     (tx) =>
       tx.merchant.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (accountsLoading && !accountsData) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0F172B]">Accounts</h1>
+        <AccountsSkeleton />
+      </div>
+    );
+  }
+
+  if (accountsError && !accountsData) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0F172B]">Accounts</h1>
+        <InlineError
+          message={accountsErr?.message ?? "Failed to load accounts"}
+          onRetry={() => refetchAccounts()}
+        />
+        <AccountsSkeleton />
+      </div>
+    );
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0F172B]">Accounts</h1>
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-8 text-center">
+          <p className="text-[#62748E]">You don&apos;t have any accounts yet.</p>
+          <Link
+            href="/dashboard/accounts"
+            className="mt-4 inline-block rounded-lg bg-[#155DFC] px-4 py-2 text-sm font-medium text-white"
+          >
+            Create Account
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -168,8 +264,8 @@ export default function AccountsPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,383px)_1fr]">
         {/* Left: Account cards */}
         <div className="flex flex-col gap-4">
-          {ACCOUNTS.map((acc) => {
-            const isSelected = selectedId === acc.id;
+          {accounts.map((acc) => {
+            const isSelected = effectiveSelectedId === acc.id;
             const isDark = isSelected;
             return (
               <button
@@ -207,7 +303,7 @@ export default function AccountsPage() {
                   </div>
                 </div>
                 <p className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#45556C]"}`}>
-                  {acc.balance}
+                  {formatBalance(acc.balance)}
                 </p>
               </button>
             );
@@ -221,19 +317,23 @@ export default function AccountsPage() {
             <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-normal uppercase tracking-wider text-[#62748E]">Current Balance</p>
-                <p className="mt-2 text-[36px] font-bold leading-tight text-[#0F172B]">{selected.balance}</p>
+                <p className="mt-2 text-[36px] font-bold leading-tight text-[#0F172B]">
+                  {selected ? formatBalance(selected.balance) : "$0.00"}
+                </p>
                 <p className="mt-2 flex items-center gap-2 text-sm text-[#62748E]">
                   <span>Available Balance:</span>
-                  <span className="font-medium text-[#314158]">{selected.balance}</span>
+                  <span className="font-medium text-[#314158]">
+                    {selected ? formatBalance(selected.balance) : "$0.00"}
+                  </span>
                 </p>
               </div>
               <div className="mt-4 flex gap-2 sm:mt-0">
-                <button
-                  type="button"
+                <Link
+                  href="/dashboard/transfers"
                   className="inline-flex h-[38px] items-center justify-center rounded-[10px] bg-[#155DFC] px-4 text-sm font-medium text-white transition hover:bg-[#1247d4]"
                 >
                   Transfer Funds
-                </button>
+                </Link>
                 <button
                   type="button"
                   className="inline-flex h-[38px] items-center justify-center rounded-[10px] border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#314158] transition hover:bg-[#F8FAFC]"
@@ -244,30 +344,42 @@ export default function AccountsPage() {
             </div>
 
             {/* Account details row */}
-            <div className="flex flex-wrap gap-6 border-t border-[#F1F5F9] pt-6">
-              <div>
-                <p className="text-xs font-normal text-[#90A1B9]">Account Number</p>
-                <p className="mt-1 font-mono text-sm text-[#314158]">{selected.accountNumber}</p>
-              </div>
-              {selected.routingNumber && (
+            {selected && (
+              <div className="flex flex-wrap gap-6 border-t border-[#F1F5F9] pt-6">
                 <div>
-                  <p className="text-xs font-normal text-[#90A1B9]">Routing Number</p>
-                  <p className="mt-1 font-mono text-sm text-[#314158]">{selected.routingNumber}</p>
+                  <p className="text-xs font-normal text-[#90A1B9]">Account Number</p>
+                  <p className="mt-1 font-mono text-sm text-[#314158]">{selected.accountNumber}</p>
                 </div>
-              )}
-              <div>
-                <p className="text-xs font-normal text-[#90A1B9]">Status</p>
-                <span className="mt-1 inline-flex items-center rounded bg-[#DCFCE7] px-2 py-0.5 text-xs font-normal text-[#016630]">
-                  Active
-                </span>
-              </div>
-              {selected.interestRate && (
+                {selected.routingNumber && (
+                  <div>
+                    <p className="text-xs font-normal text-[#90A1B9]">Routing Number</p>
+                    <p className="mt-1 font-mono text-sm text-[#314158]">{selected.routingNumber}</p>
+                  </div>
+                )}
                 <div>
-                  <p className="text-xs font-normal text-[#90A1B9]">Interest Rate</p>
-                  <p className="mt-1 text-sm font-medium text-[#314158]">{selected.interestRate}</p>
+                  <p className="text-xs font-normal text-[#90A1B9]">Status</p>
+                  <span
+                    className={`mt-1 inline-flex items-center rounded px-2 py-0.5 text-xs font-normal ${
+                      selected.status === "active"
+                        ? "bg-[#DCFCE7] text-[#016630]"
+                        : selected.status === "closed"
+                          ? "bg-[#F1F5F9] text-[#62748E]"
+                          : "bg-[#FEF3C7] text-[#92400E]"
+                    }`}
+                  >
+                    {selected.status.charAt(0).toUpperCase() + selected.status.slice(1)}
+                  </span>
                 </div>
-              )}
-            </div>
+                {selected.interestRate !== null && (
+                  <div>
+                    <p className="text-xs font-normal text-[#90A1B9]">Interest Rate</p>
+                    <p className="mt-1 text-sm font-medium text-[#314158]">
+                      {formatInterestRate(selected.interestRate)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Tabs + Transactions / Details */}
@@ -338,34 +450,52 @@ export default function AccountsPage() {
                     </div>
                   </div>
 
-                  <ul className="space-y-1">
-                    {filteredTransactions.map((tx) => (
-                      <li
-                        key={tx.id}
-                        className="flex items-center justify-between gap-4 rounded-[14px] border border-transparent px-4 py-3 transition hover:bg-[#F8FAFC]"
-                      >
-                        <div className="flex items-center gap-4">
-                          <TransactionIcon type={tx.icon} bg={tx.iconBg} />
-                          <div>
-                            <p className="font-medium text-[#0F172B]">{tx.merchant}</p>
-                            <p className="text-xs text-[#62748E]">{tx.date}</p>
+                  {transactionsLoading ? (
+                    <div className="flex min-h-[200px] items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#155DFC] border-r-transparent" />
+                    </div>
+                  ) : transactionsError ? (
+                    <InlineError
+                      message={transactionsErr?.message ?? "Failed to load transactions"}
+                      onRetry={() => refetchTransactions()}
+                    />
+                  ) : filteredTransactions.length === 0 ? (
+                    <div className="py-12 text-center text-sm text-[#62748E]">
+                      {searchQuery ? "No transactions match your search." : "No transactions yet."}
+                    </div>
+                  ) : (
+                    <ul className="space-y-1">
+                      {filteredTransactions.map((tx) => (
+                        <li
+                          key={tx.id}
+                          className="flex items-center justify-between gap-4 rounded-[14px] border border-transparent px-4 py-3 transition hover:bg-[#F8FAFC]"
+                        >
+                          <div className="flex items-center gap-4">
+                            <TransactionIcon
+                              type={getCategoryIcon(tx.category)}
+                              bg={getIconBg(tx.category)}
+                            />
+                            <div>
+                              <p className="font-medium text-[#0F172B]">{tx.merchant}</p>
+                              <p className="text-xs text-[#62748E]">{tx.date}</p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p
-                            className={`font-bold ${tx.amount.startsWith("+") ? "text-[#00C950]" : "text-[#0F172B]"}`}
-                          >
-                            {tx.amount}
-                          </p>
-                          <p className="text-xs font-normal uppercase text-[#90A1B9]">{tx.category}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                          <div className="text-right">
+                            <p
+                              className={`font-bold ${tx.amount >= 0 ? "text-[#00C950]" : "text-[#0F172B]"}`}
+                            >
+                              {formatCurrency(tx.amount)}
+                            </p>
+                            <p className="text-xs font-normal uppercase text-[#90A1B9]">{tx.category}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 
-              {tab === "details" && (
+              {tab === "details" && selected && (
                 <div className="flex flex-col gap-8">
                   <div>
                     <h3 className="mb-4 text-base font-semibold text-[#0F172B]">Account Information</h3>
@@ -373,20 +503,18 @@ export default function AccountsPage() {
                       <div className="flex flex-col gap-1">
                         <dt className="text-sm font-normal text-[#62748E]">Opened Date</dt>
                         <dd className="text-sm font-normal text-[#0F172B]">
-                          {selected.openedDate ?? "March 2020"}
+                          {formatDate(selected.openedDate)}
                         </dd>
                       </div>
                       <div className="flex flex-col gap-1">
                         <dt className="text-sm font-normal text-[#62748E]">Account Type</dt>
                         <dd className="text-sm font-medium text-[#0F172B]">
-                          {selected.accountType ?? selected.name}
+                          {selected.accountType.charAt(0).toUpperCase() + selected.accountType.slice(1)}
                         </dd>
                       </div>
                       <div className="flex flex-col gap-1">
                         <dt className="text-sm font-normal text-[#62748E]">Ownership</dt>
-                        <dd className="text-sm font-normal text-[#0F172B]">
-                          {selected.ownership ?? "Individual"}
-                        </dd>
+                        <dd className="text-sm font-normal text-[#0F172B]">{selected.ownership}</dd>
                       </div>
                     </dl>
                   </div>
@@ -396,19 +524,23 @@ export default function AccountsPage() {
                       <div className="flex flex-col gap-1">
                         <dt className="text-sm font-normal text-[#62748E]">Monthly Fee</dt>
                         <dd className="text-sm font-normal text-[#0F172B]">
-                          {selected.monthlyFee ?? "$0.00"}
+                          {formatBalance(selected.monthlyFee)}
                         </dd>
                       </div>
-                      {selected.overdraftLimit && (
+                      {selected.overdraftLimit !== null && (
                         <div className="flex flex-col gap-1">
                           <dt className="text-sm font-normal text-[#62748E]">Overdraft Limit</dt>
-                          <dd className="text-sm font-normal text-[#0F172B]">{selected.overdraftLimit}</dd>
+                          <dd className="text-sm font-normal text-[#0F172B]">
+                            {formatBalance(selected.overdraftLimit)}
+                          </dd>
                         </div>
                       )}
-                      {selected.dailyTransferLimit && (
+                      {selected.dailyTransferLimit !== null && (
                         <div className="flex flex-col gap-1">
                           <dt className="text-sm font-normal text-[#62748E]">Daily Transfer Limit</dt>
-                          <dd className="text-sm font-normal text-[#0F172B]">{selected.dailyTransferLimit}</dd>
+                          <dd className="text-sm font-normal text-[#0F172B]">
+                            {formatBalance(selected.dailyTransferLimit)}
+                          </dd>
                         </div>
                       )}
                     </dl>

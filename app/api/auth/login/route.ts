@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         accountNumber: userData.accountNumber,
         firstName: userData.firstName,
         lastName: userData.lastName,
+        avatarUrl: userData.avatarUrl || null,
       },
       customToken, // Client should exchange this for ID token using Firebase Auth
     });

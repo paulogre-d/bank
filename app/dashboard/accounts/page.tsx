@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { getAuthHeader } from "@/lib/auth/client";
+import { useAccounts, useTransferHistory } from "@/lib/api/hooks";
+import { AccountsSkeleton } from "@/components/skeletons/AccountsSkeleton";
+import { InlineError } from "@/components/InlineError";
 
 type Account = {
   id: string;
@@ -154,164 +156,86 @@ function TransactionIcon({ type, bg }: { type: string; bg: string }) {
   }
 }
 
-export default function AccountsPage() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountsLoading, setAccountsLoading] = useState(true);
-  const [accountsError, setAccountsError] = useState<string | null>(null);
+function mapApiAccountToAccount(a: {
+  id: string;
+  name: string;
+  balance: number;
+  lastFour?: string;
+  accountNumber?: string;
+  routingNumber: string | null;
+  interestRate: number | null;
+  openedDate: string | null;
+  accountType: string;
+  ownership?: string;
+  monthlyFee: number;
+  overdraftLimit: number | null;
+  dailyTransferLimit: number | null;
+  status: string;
+}): Account {
+  return {
+    id: a.id,
+    name: a.name,
+    balance: a.balance || 0,
+    lastFour: a.lastFour ?? a.accountNumber?.slice(-4) ?? "",
+    accountNumber: a.accountNumber ?? "",
+    routingNumber: a.routingNumber,
+    interestRate: a.interestRate,
+    openedDate: a.openedDate,
+    accountType: a.accountType,
+    ownership: a.ownership || "Individual",
+    monthlyFee: a.monthlyFee || 0,
+    overdraftLimit: a.overdraftLimit,
+    dailyTransferLimit: a.dailyTransferLimit,
+    status: a.status || "active",
+  };
+}
 
+export default function AccountsPage() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [tab, setTab] = useState<"transactions" | "details">("transactions");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+  const { data: accountsData, isLoading: accountsLoading, isError: accountsError, error: accountsErr, refetch: refetchAccounts } = useAccounts();
+  const accounts = (accountsData ?? []).map(mapApiAccountToAccount);
 
-  const fetchAccounts = useCallback(async () => {
-    setAccountsLoading(true);
-    setAccountsError(null);
-    try {
-      const headers = await getAuthHeader();
-      const res = await fetch("/api/accounts", { headers: { ...headers } });
-      const json = await res.json();
-      if (!json.success) {
-        setAccountsError(json.error || "Failed to load accounts");
-        setAccounts([]);
-        return;
-      }
-      const list = (json.data || []).map((a: {
-        id: string;
-        name: string;
-        balance: number;
-        lastFour?: string;
-        accountNumber?: string;
-        routingNumber: string | null;
-        interestRate: number | null;
-        openedDate: string | null;
-        accountType: string;
-        ownership?: string;
-        monthlyFee: number;
-        overdraftLimit: number | null;
-        dailyTransferLimit: number | null;
-        status: string;
-      }) => ({
-        id: a.id,
-        name: a.name,
-        balance: a.balance || 0,
-        lastFour: a.lastFour ?? a.accountNumber?.slice(-4) ?? "",
-        accountNumber: a.accountNumber,
-        routingNumber: a.routingNumber,
-        interestRate: a.interestRate,
-        openedDate: a.openedDate,
-        accountType: a.accountType,
-        ownership: a.ownership || "Individual",
-        monthlyFee: a.monthlyFee || 0,
-        overdraftLimit: a.overdraftLimit,
-        dailyTransferLimit: a.dailyTransferLimit,
-        status: a.status || "active",
-      }));
-      setAccounts(list);
-      if (list.length > 0 && !selectedId) {
-        setSelectedId(list[0].id);
-      }
-    } catch (e: unknown) {
-      setAccountsError(e instanceof Error ? e.message : "Failed to load accounts");
-      setAccounts([]);
-    } finally {
-      setAccountsLoading(false);
-    }
-  }, [selectedId]);
+  const effectiveSelectedId =
+    (selectedId && accounts.some((a) => a.id === selectedId)) ? selectedId : (accounts[0]?.id ?? "");
+  const { data: txData, isLoading: transactionsLoading, isError: transactionsError, error: transactionsErr, refetch: refetchTransactions } = useTransferHistory(effectiveSelectedId || undefined, 50);
+  const transactions: Transaction[] = (txData?.transactions ?? []).map((tx) => ({
+    id: tx.id,
+    merchant: tx.merchant || "Transfer",
+    date: tx.timestamp
+      ? new Date(tx.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "—",
+    amount: tx.amount,
+    category: tx.category || "transfer",
+  }));
 
-  const fetchTransactions = useCallback(
-    async (accountId: string) => {
-      if (!accountId) return;
-      setTransactionsLoading(true);
-      setTransactionsError(null);
-      try {
-        const headers = await getAuthHeader();
-        const res = await fetch(`/api/transfers/history?accountId=${accountId}&limit=50`, {
-          headers: { ...headers },
-        });
-        const json = (await res.json()) as {
-          success: boolean;
-          error?: string;
-          data?: {
-            transactions?: Array<{
-              id: string;
-              merchant?: string;
-              timestamp?: string;
-              amount: number;
-              category?: string;
-            }>;
-          };
-        };
-        if (!json.success) {
-          setTransactionsError(json.error || "Failed to load transactions");
-          setTransactions([]);
-          return;
-        }
-        const txList = (json.data?.transactions || []).map((tx) => ({
-          id: tx.id,
-          merchant: tx.merchant || "Transfer",
-          date: tx.timestamp
-            ? new Date(tx.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-            : "—",
-          amount: tx.amount,
-          category: tx.category || "transfer",
-        }));
-        setTransactions(txList);
-      } catch (e: unknown) {
-        setTransactionsError(e instanceof Error ? e.message : "Failed to load transactions");
-        setTransactions([]);
-      } finally {
-        setTransactionsLoading(false);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
-
-  useEffect(() => {
-    if (selectedId) {
-      fetchTransactions(selectedId);
-    }
-  }, [selectedId, fetchTransactions]);
-
-  const selected = accounts.find((a) => a.id === selectedId);
+  const selected = accounts.find((a) => a.id === effectiveSelectedId);
   const filteredTransactions = transactions.filter(
     (tx) =>
       tx.merchant.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (accountsLoading && accounts.length === 0) {
+  if (accountsLoading && !accountsData) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[#0F172B]">Accounts</h1>
-        <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-[#E2E8F0] bg-white">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#155DFC] border-r-transparent" />
-        </div>
+        <AccountsSkeleton />
       </div>
     );
   }
 
-  if (accountsError && accounts.length === 0) {
+  if (accountsError && !accountsData) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[#0F172B]">Accounts</h1>
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-          <p className="text-red-600">{accountsError}</p>
-          <button
-            type="button"
-            onClick={() => fetchAccounts()}
-            className="mt-4 rounded-lg bg-[#155DFC] px-4 py-2 text-sm font-medium text-white"
-          >
-            Retry
-          </button>
-        </div>
+        <InlineError
+          message={accountsErr?.message ?? "Failed to load accounts"}
+          onRetry={() => refetchAccounts()}
+        />
+        <AccountsSkeleton />
       </div>
     );
   }
@@ -341,7 +265,7 @@ export default function AccountsPage() {
         {/* Left: Account cards */}
         <div className="flex flex-col gap-4">
           {accounts.map((acc) => {
-            const isSelected = selectedId === acc.id;
+            const isSelected = effectiveSelectedId === acc.id;
             const isDark = isSelected;
             return (
               <button
@@ -531,9 +455,10 @@ export default function AccountsPage() {
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#155DFC] border-r-transparent" />
                     </div>
                   ) : transactionsError ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-                      {transactionsError}
-                    </div>
+                    <InlineError
+                      message={transactionsErr?.message ?? "Failed to load transactions"}
+                      onRetry={() => refetchTransactions()}
+                    />
                   ) : filteredTransactions.length === 0 ? (
                     <div className="py-12 text-center text-sm text-[#62748E]">
                       {searchQuery ? "No transactions match your search." : "No transactions yet."}

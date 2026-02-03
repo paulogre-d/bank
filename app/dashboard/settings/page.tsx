@@ -1,21 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getAuthHeader, reauthenticateAndUpdatePassword } from "@/lib/auth/client";
+import { useAuthStore } from "@/store/auth";
 
 type TabId = "profile" | "security";
 
+type Address = {
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+} | null;
+
+type ProfileUser = {
+  uid: string;
+  email: string;
+  accountNumber: string;
+  firstName: string;
+  lastName: string;
+  phone?: string | null;
+  address?: Address;
+  avatarUrl?: string | null;
+};
+
 export default function SettingsPage() {
+  const storeUser = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
+
   const [tab, setTab] = useState<TabId>("profile");
-  const [firstName, setFirstName] = useState("David");
-  const [lastName, setLastName] = useState("Vwaire");
-  const [email, setEmail] = useState("david.vwaire@email.com");
-  const [phone, setPhone] = useState("+1 (555) 123-4567");
-  const [dateOfBirth, setDateOfBirth] = useState("1990-03-15");
-  const [address, setAddress] = useState("123 Main Street");
-  const [city, setCity] = useState("San Francisco");
-  const [state, setState] = useState("CA");
-  const [zipCode, setZipCode] = useState("94102");
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+
+  // Change password (Security tab)
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const user = storeUser as ProfileUser | null;
+
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.firstName ?? "");
+      setLastName(user.lastName ?? "");
+      setEmail(user.email ?? "");
+      setPhone(user.phone ?? "");
+      const addr = user.address;
+      if (addr && typeof addr === "object") {
+        setAddress(addr.street ?? "");
+        setCity(addr.city ?? "");
+        setState(addr.state ?? "");
+        setZipCode(addr.zip ?? "");
+      } else {
+        setAddress("");
+        setCity("");
+        setState("");
+        setZipCode("");
+      }
+    }
+  }, [user?.uid, user?.firstName, user?.lastName, user?.email, user?.phone, user?.address]);
 
   const tabs: { id: TabId; label: string }[] = [
     { id: "profile", label: "Profile" },
@@ -26,11 +82,78 @@ export default function SettingsPage() {
     "h-12 w-full rounded-xl border border-[#E2E8F0] bg-white px-4 text-base text-[#0F172B] outline-none placeholder:text-[#94A3B8] focus:border-[#155DFC] focus:ring-2 focus:ring-[#155DFC]/20";
   const labelClass = "text-sm font-medium text-[#314158]";
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaveMessage(null);
+    setSaving(true);
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim() || null,
+          address: {
+            street: address.trim(),
+            city: city.trim(),
+            state: state.trim(),
+            zip: zipCode.trim(),
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setSaveMessage({ type: "error", text: json.error || "Failed to save" });
+        return;
+      }
+      if (json.data) setUser(json.data);
+      setSaveMessage({ type: "success", text: "Profile updated successfully." });
+    } catch (err) {
+      setSaveMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to save profile",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const initials = [firstName, lastName].map((s) => s.trim()[0]).filter(Boolean).join("").toUpperCase() || "?";
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMessage(null);
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: "error", text: "New password and confirmation do not match." });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordMessage({ type: "error", text: "New password must be at least 6 characters." });
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await reauthenticateAndUpdatePassword(currentPassword, newPassword);
+      setPasswordMessage({ type: "success", text: "Password updated successfully." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPasswordMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to change password",
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-[#0F172B]">Settings</h1>
 
-      {/* Tabs */}
       <div className="flex gap-1 border-b border-[#E2E8F0]">
         {tabs.map((t) => (
           <button
@@ -38,9 +161,7 @@ export default function SettingsPage() {
             type="button"
             onClick={() => setTab(t.id)}
             className={`relative px-4 pb-4 pt-2 text-sm font-medium transition ${
-              tab === t.id
-                ? "text-[#155DFC]"
-                : "text-[#62748E] hover:text-[#314158]"
+              tab === t.id ? "text-[#155DFC]" : "text-[#62748E] hover:text-[#314158]"
             }`}
           >
             {t.label}
@@ -51,7 +172,6 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* Profile Tab */}
       {tab === "profile" && (
         <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
           <div className="border-b border-[#F1F5F9] p-6">
@@ -59,27 +179,32 @@ export default function SettingsPage() {
             <p className="mt-1 text-sm text-[#62748E]">Update your personal details</p>
           </div>
           <div className="p-6">
-            {/* Avatar */}
+            {saveMessage && (
+              <div
+                className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+                  saveMessage.type === "success"
+                    ? "border-green-200 bg-green-50 text-green-800"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}
+              >
+                {saveMessage.text}
+              </div>
+            )}
+
             <div className="mb-8 flex items-center gap-6">
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#F1F5F9]">
-                <span className="text-2xl font-semibold text-[#64748B]">
-                  {firstName[0]}
-                  {lastName[0]}
-                </span>
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#155DFC]">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-semibold text-white">{initials}</span>
+                )}
               </div>
               <div>
-                <button
-                  type="button"
-                  className="rounded-xl border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#314158] transition hover:bg-[#F8FAFC]"
-                >
-                  Change Photo
-                </button>
-                <p className="mt-2 text-xs text-[#94A3B8]">JPG, PNG or GIF. Max 2MB.</p>
+                <p className="text-sm text-[#62748E]">Account number: {user?.accountNumber ?? "—"}</p>
               </div>
             </div>
 
-            {/* Form */}
-            <form className="flex flex-col gap-6">
+            <form className="flex flex-col gap-6" onSubmit={handleSaveProfile}>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="firstName" className={labelClass}>
@@ -117,10 +242,12 @@ export default function SettingsPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={inputClass}
+                  readOnly
+                  className={inputClass + " bg-[#F8FAFC] cursor-not-allowed"}
                   placeholder="email@example.com"
+                  title="Email cannot be changed here"
                 />
+                <p className="text-xs text-[#94A3B8]">Email cannot be changed from this page.</p>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -134,19 +261,6 @@ export default function SettingsPage() {
                   onChange={(e) => setPhone(e.target.value)}
                   className={inputClass}
                   placeholder="+1 (555) 000-0000"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label htmlFor="dateOfBirth" className={labelClass}>
-                  Date of Birth
-                </label>
-                <input
-                  id="dateOfBirth"
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className={inputClass}
                 />
               </div>
 
@@ -213,9 +327,10 @@ export default function SettingsPage() {
               <div className="flex justify-end border-t border-[#F1F5F9] pt-6">
                 <button
                   type="submit"
-                  className="h-11 rounded-xl bg-[#155DFC] px-6 text-sm font-semibold text-white transition hover:bg-[#1247d4]"
+                  disabled={saving}
+                  className="h-11 rounded-xl bg-[#155DFC] px-6 text-sm font-semibold text-white transition hover:bg-[#1247d4] disabled:opacity-50"
                 >
-                  Save Changes
+                  {saving ? "Saving…" : "Save Changes"}
                 </button>
               </div>
             </form>
@@ -223,17 +338,26 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Security Tab */}
       {tab === "security" && (
         <div className="space-y-6">
-          {/* Change Password */}
           <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
             <div className="border-b border-[#F1F5F9] p-6">
               <h2 className="text-lg font-semibold text-[#0F172B]">Change Password</h2>
               <p className="mt-1 text-sm text-[#62748E]">Update your password to keep your account secure</p>
             </div>
-            <form className="p-6">
-              <div className="flex flex-col gap-6 max-w-md">
+            <form className="p-6" onSubmit={handleChangePassword}>
+              {passwordMessage && (
+                <div
+                  className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+                    passwordMessage.type === "success"
+                      ? "border-green-200 bg-green-50 text-green-800"
+                      : "border-red-200 bg-red-50 text-red-700"
+                  }`}
+                >
+                  {passwordMessage.text}
+                </div>
+              )}
+              <div className="flex max-w-md flex-col gap-6">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="currentPassword" className={labelClass}>
                     Current Password
@@ -241,8 +365,11 @@ export default function SettingsPage() {
                   <input
                     id="currentPassword"
                     type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
                     className={inputClass}
                     placeholder="Enter current password"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -252,8 +379,12 @@ export default function SettingsPage() {
                   <input
                     id="newPassword"
                     type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     className={inputClass}
-                    placeholder="Enter new password"
+                    placeholder="Enter new password (min 6 characters)"
+                    minLength={6}
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -263,21 +394,24 @@ export default function SettingsPage() {
                   <input
                     id="confirmPassword"
                     type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     className={inputClass}
                     placeholder="Confirm new password"
+                    required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="h-11 w-fit rounded-xl bg-[#155DFC] px-6 text-sm font-semibold text-white transition hover:bg-[#1247d4]"
+                  disabled={changingPassword}
+                  className="h-11 w-fit rounded-xl bg-[#155DFC] px-6 text-sm font-semibold text-white transition hover:bg-[#1247d4] disabled:opacity-50"
                 >
-                  Update Password
+                  {changingPassword ? "Updating…" : "Update Password"}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Two-Factor Authentication */}
           <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
             <div className="flex items-center justify-between gap-4 p-6">
               <div className="flex items-start gap-4">
@@ -294,7 +428,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-[#0F172B]">Two-Factor Authentication</h2>
-                  <p className="mt-1 text-sm text-[#62748E]">Add an extra layer of security to your account</p>
+                  <p className="mt-1 text-sm text-[#62748E]">Add an extra layer of security (coming soon)</p>
                 </div>
               </div>
               <button
@@ -314,7 +448,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Active Sessions */}
           <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
             <div className="border-b border-[#F1F5F9] p-6">
               <h2 className="text-lg font-semibold text-[#0F172B]">Active Sessions</h2>
@@ -337,39 +470,13 @@ export default function SettingsPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-[#0F172B]">Chrome on MacOS</p>
-                    <p className="text-xs text-[#62748E]">San Francisco, CA · Current session</p>
+                    <p className="text-sm font-medium text-[#0F172B]">Current device</p>
+                    <p className="text-xs text-[#62748E]">This session · Active</p>
                   </div>
                 </div>
                 <span className="rounded-full bg-[#DCFCE7] px-3 py-1 text-xs font-medium text-[#016630]">
                   Active
                 </span>
-              </div>
-              <div className="flex items-center justify-between gap-4 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F1F5F9]">
-                    <svg
-                      className="h-5 w-5 text-[#64748B]"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-                      <line x1="12" y1="18" x2="12.01" y2="18" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-[#0F172B]">Safari on iPhone</p>
-                    <p className="text-xs text-[#62748E]">San Francisco, CA · Last active 2 days ago</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="text-sm font-medium text-[#DC2626] hover:underline"
-                >
-                  Revoke
-                </button>
               </div>
             </div>
           </div>

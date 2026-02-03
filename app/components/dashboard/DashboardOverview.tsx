@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import {
   IconAdd,
@@ -13,10 +12,10 @@ import {
   IconStatements,
 } from "./icons";
 import { useAuthStore } from "@/store/auth";
-import {
-  useDashboardStore,
-  type DashboardAccount,
-} from "@/store/dashboard";
+import type { DashboardAccount } from "@/store/dashboard";
+import { useDashboardOverview } from "@/lib/api/hooks";
+import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
+import { InlineError } from "@/components/InlineError";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -178,44 +177,29 @@ function AccountCard({
 
 export default function DashboardOverview() {
   const user = useAuthStore((s) => s.user);
-  const accounts = useDashboardStore((s) => s.accounts);
-  const recentTransactions = useDashboardStore((s) => s.recentTransactions);
-  const spendingAnalytics = useDashboardStore((s) => s.spendingAnalytics);
-  const loading = useDashboardStore((s) => s.loading);
-  const error = useDashboardStore((s) => s.error);
-  const fetchOverview = useDashboardStore((s) => s.fetchOverview);
+  const { data, isLoading, isError, error, refetch } = useDashboardOverview();
 
-  useEffect(() => {
-    if (user) {
-      fetchOverview();
-    }
-  }, [user, fetchOverview]);
-
+  const accounts = data?.accounts ?? [];
+  const recentTransactions = data?.recentTransactions ?? [];
+  const spendingAnalytics = data?.spendingAnalytics ?? { thisWeek: 0, lastMonth: 0 };
   const firstName = user?.firstName ?? "";
   const maxValue = Math.max(spendingAnalytics.thisWeek, 1);
 
-  if (loading && accounts.length === 0) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#155DFC] border-r-transparent" />
-          <p className="text-[#45556C]">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+  if (isLoading && !data) {
+    return <DashboardSkeleton />;
   }
 
-  if (error && accounts.length === 0) {
+  if (isError && !data) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-        <p className="text-red-600">{error}</p>
-        <button
-          type="button"
-          onClick={() => fetchOverview()}
-          className="mt-4 rounded-lg bg-[#155DFC] px-4 py-2 text-sm font-medium text-white hover:bg-[#1248d4]"
-        >
-          Retry
-        </button>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0F172B]">
+          {getGreeting()}{firstName ? `, ${firstName}` : ""}
+        </h1>
+        <InlineError
+          message={error?.message ?? "Failed to load dashboard"}
+          onRetry={() => refetch()}
+        />
+        <div className="min-h-[200px] rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC]" />
       </div>
     );
   }

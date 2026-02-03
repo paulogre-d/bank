@@ -1,4 +1,4 @@
-import { signInWithCustomToken, signOut } from 'firebase/auth';
+import { signInWithCustomToken, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
 export interface RegisterData {
@@ -29,6 +29,7 @@ export interface AuthUser {
   accountNumber: string;
   firstName: string;
   lastName: string;
+  avatarUrl?: string | null;
 }
 
 /**
@@ -123,4 +124,18 @@ export async function getAuthHeader(): Promise<{ Authorization: string } | {}> {
     return {};
   }
   return { Authorization: `Bearer ${token}` };
+}
+
+/**
+ * Reauthenticate with current password and set a new password.
+ * Must be called while the user is signed in.
+ */
+export async function reauthenticateAndUpdatePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user?.email) {
+    throw new Error('You must be signed in to change your password.');
+  }
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 }

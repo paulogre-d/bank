@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import TransferSuccessModal from "@/app/components/TransferSuccessModal";
 import { getAuthHeader } from "@/lib/auth/client";
-import { useDashboardStore } from "@/store/dashboard";
+import { useAccounts, useInvalidateDashboard, useInvalidateAccounts } from "@/lib/api/hooks";
+import { TransfersSkeleton } from "@/components/skeletons/TransfersSkeleton";
+import { InlineError } from "@/components/InlineError";
 
 type AccountOption = { id: string; name: string; lastFour: string; balance: string };
 
@@ -98,11 +100,16 @@ const FREQUENCY_OPTIONS = ["One-time Transfer", "Weekly", "Monthly"];
 const BANKS = ["Lead Bank", "Chase", "Bank of America", "Wells Fargo", "Citibank"];
 
 export default function TransfersPage() {
-  const fetchOverview = useDashboardStore((s) => s.fetchOverview);
+  const invalidateDashboard = useInvalidateDashboard();
+  const invalidateAccounts = useInvalidateAccounts();
 
-  const [accounts, setAccounts] = useState<AccountOption[]>([]);
-  const [accountsLoading, setAccountsLoading] = useState(true);
-  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const { data: accountsData, isLoading: accountsLoading, isError: accountsError, error: accountsErr, refetch: refetchAccounts } = useAccounts();
+  const accounts: AccountOption[] = (accountsData ?? []).map((a) => ({
+    id: a.id,
+    name: a.name,
+    lastFour: a.lastFour ?? a.accountNumber?.slice(-4) ?? "",
+    balance: formatBalance(a.balance),
+  }));
 
   const [transferType, setTransferType] = useState("internal");
   const [fromAccount, setFromAccount] = useState("");
@@ -132,42 +139,15 @@ export default function TransfersPage() {
   const fromAcc = accounts.find((a) => a.id === fromAccount) ?? internalAccounts[0];
   const toAcc = accounts.find((a) => a.id === toAccount) ?? internalAccounts[1];
 
-  const fetchAccounts = useCallback(async () => {
-    setAccountsLoading(true);
-    setAccountsError(null);
-    try {
-      const headers = await getAuthHeader();
-      const res = await fetch("/api/accounts", { headers: { ...headers } });
-      const json = await res.json();
-      if (!json.success) {
-        setAccountsError(json.error || "Failed to load accounts");
-        setAccounts([]);
-        return;
-      }
-      const list = (json.data || []).map((a: { id: string; name: string; lastFour?: string; accountNumber?: string; balance: number }) => ({
-        id: a.id,
-        name: a.name,
-        lastFour: a.lastFour ?? a.accountNumber?.slice(-4) ?? "",
-        balance: formatBalance(a.balance),
-      }));
-      setAccounts(list);
-      if (list.length > 0 && !fromAccount) {
-        const checking = list.find((a: AccountOption) => a.name.toLowerCase().includes("checking")) ?? list[0];
-        const savings = list.find((a: AccountOption) => a.name.toLowerCase().includes("savings")) ?? list[1];
-        setFromAccount(checking.id);
-        setToAccount(savings.id === checking.id ? list.find((a: AccountOption) => a.id !== checking.id)?.id ?? list[0].id : savings.id);
-      }
-    } catch (e: unknown) {
-      setAccountsError(e instanceof Error ? e.message : "Failed to load accounts");
-      setAccounts([]);
-    } finally {
-      setAccountsLoading(false);
-    }
-  }, [fromAccount]);
-
   useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
+    if (accountsData && accountsData.length > 0 && !fromAccount) {
+      const list = accountsData;
+      const checking = list.find((a) => a.name.toLowerCase().includes("checking")) ?? list[0];
+      const savings = list.find((a) => a.name.toLowerCase().includes("savings")) ?? list[1];
+      setFromAccount(checking.id);
+      setToAccount(savings.id === checking.id ? list.find((a) => a.id !== checking.id)?.id ?? list[0].id : savings.id);
+    }
+  }, [accountsData, fromAccount]);
 
   const validateBeneficiary = useCallback(async (accountNumber: string) => {
     if (accountNumber.length !== 12) {
@@ -321,7 +301,8 @@ export default function TransfersPage() {
       setShowReview(false);
       setShowSuccessModal(true);
       setAmount("");
-      fetchOverview();
+      invalidateDashboard();
+      invalidateAccounts();
     } catch (e: unknown) {
       setTransferError(e instanceof Error ? e.message : "Transfer failed");
     } finally {
@@ -338,31 +319,25 @@ export default function TransfersPage() {
     setAmount("");
   };
 
-  if (accountsLoading && accounts.length === 0) {
+  const hasAccounts = (accountsData?.length ?? 0) > 0;
+  if (accountsLoading && !hasAccounts) {
     return (
       <div className="flex flex-col gap-8 px-0 pt-0 md:px-0 md:pt-0">
         <h1 className="text-2xl font-bold text-[#0F172B]">Move Money</h1>
-        <div className="flex min-h-[200px] items-center justify-center rounded-2xl border border-[#E2E8F0] bg-white">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#155DFC] border-r-transparent" />
-        </div>
+        <TransfersSkeleton />
       </div>
     );
   }
 
-  if (accountsError && accounts.length === 0) {
+  if (accountsError && !hasAccounts) {
     return (
       <div className="flex flex-col gap-8 px-0 pt-0 md:px-0 md:pt-0">
         <h1 className="text-2xl font-bold text-[#0F172B]">Move Money</h1>
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-          <p className="text-red-600">{accountsError}</p>
-          <button
-            type="button"
-            onClick={() => fetchAccounts()}
-            className="mt-4 rounded-lg bg-[#155DFC] px-4 py-2 text-sm font-medium text-white"
-          >
-            Retry
-          </button>
-        </div>
+        <InlineError
+          message={accountsErr?.message ?? "Failed to load accounts"}
+          onRetry={() => refetchAccounts()}
+        />
+        <TransfersSkeleton />
       </div>
     );
   }

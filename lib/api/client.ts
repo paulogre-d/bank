@@ -60,7 +60,13 @@ export async function getDashboardOverview() {
       category: string;
       accountId: string;
     }>;
-    spendingAnalytics: { thisWeek: number; lastMonth: number };
+    spendingAnalytics: {
+      thisWeek: number;
+      lastMonth: number;
+      byDay: Array<{ label: string; value: number }>;
+      byWeek: Array<{ label: string; value: number }>;
+      byMonth: Array<{ label: string; value: number }>;
+    };
   }>("/api/dashboard/overview");
   if (!json.success) throw new Error(json.error || "Failed to load dashboard");
   return json.data!;
@@ -81,5 +87,47 @@ export async function getTransferHistory(accountId?: string, limit = 50) {
     total: number;
   }>(`/api/transfers/history?${params}`);
   if (!json.success) throw new Error(json.error || "Failed to load transactions");
+  return json.data!;
+}
+
+export type CardItem = {
+  id: string;
+  name: string;
+  cardNumber: string;
+  cardHolder: string;
+  expiry: string;
+  status: string;
+  balance: number;
+  limit: number;
+  onlineUsed: number;
+  onlineLimit: number;
+  atmUsed: number;
+  atmLimit: number;
+};
+
+export async function getCards() {
+  const json = await fetchApi<{ cards: CardItem[] }>("/api/cards");
+  if (!json.success) throw new Error(json.error || "Failed to load cards");
+  return json.data?.cards ?? [];
+}
+
+export async function updateCard(
+  cardId: string,
+  body: { status?: "active" | "frozen"; pinSet?: boolean }
+) {
+  const json = await fetchApi<{ id: string; status?: string; pinSet?: boolean }>(
+    `/api/cards/${cardId}`,
+    { method: "PATCH", body: JSON.stringify(body) }
+  );
+  if (!json.success) throw new Error(json.error || "Failed to update card");
+  return json.data!;
+}
+
+export async function fundCard(cardId: string, accountId: string, amount: number) {
+  const json = await fetchApi<{ newAccountBalance: number; newCardBalance: number }>(
+    `/api/cards/${cardId}/fund`,
+    { method: "POST", body: JSON.stringify({ accountId, amount }) }
+  );
+  if (!json.success) throw new Error(json.error || "Failed to fund card");
   return json.data!;
 }

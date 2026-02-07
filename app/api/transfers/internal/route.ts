@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { uid } = authResult;
-    const { fromAccountId, toAccountId, amount, frequency, scheduledDate } = await request.json();
+    const { fromAccountId, toAccountId, amount, frequency, scheduledDate, category } = await request.json();
 
     if (!fromAccountId || !toAccountId || !amount || amount <= 0) {
       return errorResponse('Invalid request data. Amount must be positive', 400, 'VALIDATION_ERROR');
@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
       const fromAccountName = fromAccount.name || 'Account';
       const toAccountName = toAccount.name || 'Account';
 
+      const categoryValue = typeof category === 'string' && category.trim() ? category.trim() : 'transfer';
       // Create transaction record for source account
       const fromTransactionData = {
         referenceId,
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
         frequency: frequency || 'One-time Transfer',
         scheduledDate: scheduledDate || null,
         merchant: `Transfer to ${toAccountName}`,
-        category: 'transfer',
+        category: categoryValue,
         timestamp,
         createdAt: timestamp,
       };

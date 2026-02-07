@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FieldValue } from 'firebase-admin/firestore';
 import { verifyAuth } from '@/lib/middleware/auth';
 import { adminDb } from '@/lib/firebase/admin';
 import { successResponse, errorResponse } from '@/lib/utils/response';
@@ -53,6 +54,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { uid } = authResult;
+    if (!uid) {
+      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+    }
     const { accountType, name } = await request.json();
 
     if (!accountType || !['checking', 'savings'].includes(accountType)) {
@@ -84,8 +88,8 @@ export async function POST(request: NextRequest) {
       overdraftLimit: accountType === 'checking' ? 500.00 : null,
       dailyTransferLimit: accountType === 'checking' ? 5000.00 : 10000.00,
       status: 'active',
-      createdAt: adminDb.serverTimestamp(),
-      updatedAt: adminDb.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
     const accountRef = await adminDb.collection('accounts').add(accountData);

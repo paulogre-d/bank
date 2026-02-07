@@ -6,7 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { accountId: string } }
+  { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
     const authResult = await verifyAuth(request);
@@ -15,7 +15,7 @@ export async function GET(
     }
 
     const { uid } = authResult;
-    const { accountId } = params;
+    const { accountId } = await params;
 
     const accountDoc = await adminDb.collection('accounts').doc(accountId).get();
 
@@ -45,7 +45,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { accountId: string } }
+  { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
     const authResult = await verifyAuth(request);
@@ -54,7 +54,7 @@ export async function PATCH(
     }
 
     const { uid } = authResult;
-    const { accountId } = params;
+    const { accountId } = await params;
     const { amount, transactionType, referenceId } = await request.json();
 
     if (typeof amount !== 'number') {

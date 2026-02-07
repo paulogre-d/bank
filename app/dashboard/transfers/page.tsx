@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import TransferSuccessModal from "@/app/components/TransferSuccessModal";
 import { getAuthHeader } from "@/lib/auth/client";
 import { useAccounts, useInvalidateDashboard, useInvalidateAccounts } from "@/lib/api/hooks";
+import { TRANSACTION_CATEGORIES } from "@/lib/constants/transactions";
 import { TransfersSkeleton } from "@/components/skeletons/TransfersSkeleton";
 import { InlineError } from "@/components/InlineError";
 
@@ -117,6 +118,7 @@ export default function TransfersPage() {
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState("One-time Transfer");
   const [date, setDate] = useState("");
+  const [category, setCategory] = useState("Transfer");
   const [toAccountNumber, setToAccountNumber] = useState("");
   const [beneficiaryName, setBeneficiaryName] = useState("");
   const [beneficiaryValidating, setBeneficiaryValidating] = useState(false);
@@ -256,6 +258,7 @@ export default function TransfersPage() {
             amount: amountNum,
             frequency,
             scheduledDate,
+            category: category || undefined,
           }),
         });
         const json = await res.json();
@@ -276,6 +279,7 @@ export default function TransfersPage() {
             amount: amountNum,
             frequency,
             scheduledDate,
+            category: category || undefined,
           }),
         });
         const json = await res.json();
@@ -538,7 +542,7 @@ export default function TransfersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-normal uppercase text-[#62748E]">Frequency</label>
                   <select
@@ -571,6 +575,20 @@ export default function TransfersPage() {
                       />
                     </span>
                   </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-normal uppercase text-[#62748E]">Category (optional)</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="h-12 rounded-[14px] border border-[#E2E8F0] bg-white px-4 text-sm font-normal text-[#45556C] shadow-sm outline-none focus:border-[#155DFC]"
+                  >
+                    {TRANSACTION_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -652,7 +670,7 @@ export default function TransfersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-normal uppercase text-[#62748E]">Frequency</label>
                   <select
@@ -685,6 +703,20 @@ export default function TransfersPage() {
                       />
                     </span>
                   </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-normal uppercase text-[#62748E]">Category (optional)</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="h-12 rounded-[14px] border border-[#E2E8F0] bg-white px-4 text-sm font-normal text-[#45556C] shadow-sm outline-none focus:border-[#155DFC]"
+                  >
+                    {TRANSACTION_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

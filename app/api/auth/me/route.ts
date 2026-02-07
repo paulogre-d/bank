@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { uid } = authResult;
+    if (!uid) {
+      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+    }
 
     // Get user document from Firestore
     const userDoc = await adminDb.collection('users').doc(uid).get();
@@ -46,6 +49,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { uid } = authResult;
+    if (!uid) {
+      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+    }
     const body = await request.json();
 
     const allowedKeys = ['firstName', 'lastName', 'phone', 'address', 'avatarUrl'] as const;

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { adminLogin } from "@/lib/auth/admin";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -16,21 +17,15 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
-    // Mock login - any admin@vyrbank.com / admin123 works
-    await new Promise((r) => setTimeout(r, 500));
-    if (email && password) {
-      if (email.toLowerCase().includes("admin") && password.length >= 6) {
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("admin_authenticated", "true");
-        }
-        router.push("/admin");
-      } else {
-        setError("Invalid admin credentials. Use admin@vyrbank.com / admin123 for demo.");
-      }
-    } else {
-      setError("Please enter email and password.");
+    
+    try {
+      await adminLogin({ email, password });
+      router.push("/admin");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid admin credentials");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
@@ -101,7 +96,7 @@ export default function AdminLoginPage() {
             </button>
           </form>
           <p className="mt-4 text-center text-xs text-[#94A3B8]">
-            Demo: admin@vyrbank.com / admin123
+            Admin account must be manually created in Firebase Console
           </p>
         </div>
         <p className="mt-6 text-center">

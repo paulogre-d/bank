@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   IconAdd,
@@ -17,6 +18,8 @@ import { useDashboardOverview } from "@/lib/api/hooks";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 import { InlineError } from "@/components/InlineError";
 
+type AnalyticsPeriod = "thisWeek" | "lastMonth" | "thisYear";
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good Morning";
@@ -30,16 +33,6 @@ const quickActions = [
   { label: "Loan", href: "/dashboard/loans", icon: IconLoan, iconColor: "#009966" },
   { label: "Scan QR", href: "/dashboard", icon: IconScan, iconColor: "#9810FA" },
   { label: "Statement", href: "/dashboard/accounts", icon: IconStatements, iconColor: "#4F39F6" },
-];
-
-const chartData = [
-  { day: "Mon", value: 40 },
-  { day: "Tue", value: 65 },
-  { day: "Wed", value: 45 },
-  { day: "Thu", value: 80 },
-  { day: "Fri", value: 55 },
-  { day: "Sat", value: 90 },
-  { day: "Sun", value: 70 },
 ];
 
 const CATEGORY_ICON_BG: Record<string, string> = {
@@ -116,6 +109,33 @@ function TransactionIcon({ type, bg }: { type: string; bg: string }) {
           </svg>
         </div>
       );
+    case "utilities":
+      return (
+        <div className={cn} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M13 2v4l4-2-4-2zM9 8L3 6v12l6-2V8zm4 2v8l6 2V6l-6 4z" />
+          </svg>
+        </div>
+      );
+    case "shopping":
+      return (
+        <div className={cn} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+        </div>
+      );
+    case "transfer":
+      return (
+        <div className={cn} style={{ backgroundColor: bg }}>
+          <svg className="h-5 w-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M7 17L17 7M17 7h-6M17 7v6" />
+            <path d="M17 17L7 7M7 7h6M7 7v6" />
+          </svg>
+        </div>
+      );
     default:
       return <div className={cn} style={{ backgroundColor: bg || "#F1F5F9" }} />;
   }
@@ -181,9 +201,33 @@ export default function DashboardOverview() {
 
   const accounts = data?.accounts ?? [];
   const recentTransactions = data?.recentTransactions ?? [];
-  const spendingAnalytics = data?.spendingAnalytics ?? { thisWeek: 0, lastMonth: 0 };
+  const spendingAnalytics = data?.spendingAnalytics ?? {
+    thisWeek: 0,
+    lastMonth: 0,
+    byDay: [],
+    byWeek: [],
+    byMonth: [],
+  };
   const firstName = user?.firstName ?? "";
-  const maxValue = Math.max(spendingAnalytics.thisWeek, 1);
+
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>("thisWeek");
+  const chartData = useMemo(() => {
+    if (analyticsPeriod === "thisWeek") return spendingAnalytics.byDay ?? [];
+    if (analyticsPeriod === "lastMonth") return spendingAnalytics.byWeek ?? [];
+    return spendingAnalytics.byMonth ?? [];
+  }, [analyticsPeriod, spendingAnalytics.byDay, spendingAnalytics.byWeek, spendingAnalytics.byMonth]);
+  const maxValue = useMemo(
+    () => Math.max(...chartData.map((d) => d.value), 1),
+    [chartData]
+  );
+  const yAxisTicks = useMemo(() => {
+    if (maxValue <= 0) return [0];
+    const step = maxValue <= 1 ? 1 : Math.ceil(maxValue / 4);
+    const ticks: number[] = [];
+    for (let v = 0; v <= maxValue; v += step) ticks.push(Math.round(v));
+    if (ticks[ticks.length - 1] !== maxValue) ticks.push(Math.ceil(maxValue));
+    return [...new Set(ticks)].sort((a, b) => a - b);
+  }, [maxValue]);
 
   if (isLoading && !data) {
     return <DashboardSkeleton />;
@@ -279,39 +323,42 @@ export default function DashboardOverview() {
           <section className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-[#0F172B]">Spending Analytics</h2>
-              <select className="h-10 rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-sm font-medium text-[#45556C] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC]">
-                <option>This Week</option>
-                <option>Last Month</option>
-                <option>This Year</option>
+              <select
+                value={analyticsPeriod}
+                onChange={(e) => setAnalyticsPeriod(e.target.value as AnalyticsPeriod)}
+                className="h-10 rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-sm font-medium text-[#45556C] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC]"
+              >
+                <option value="thisWeek">This Week</option>
+                <option value="lastMonth">Last Month</option>
+                <option value="thisYear">This Year</option>
               </select>
             </div>
-            {/* Area chart with Y-axis labels */}
             <div className="flex gap-4">
               <div className="flex flex-col justify-between py-1 text-right text-xs text-[#94A3B8]">
-                {[600, 450, 300, 150, 0].map((n) => (
-                  <span key={n}>{n}</span>
+                {yAxisTicks.slice().reverse().map((n) => (
+                  <span key={n}>${n}</span>
                 ))}
               </div>
               <div className="flex flex-1 flex-col">
                 <div className="flex h-40 items-end gap-1">
-                  {chartData.map((d) => {
+                  {chartData.map((d, i) => {
                     const barHeight = maxValue > 0 ? Math.min((d.value / maxValue) * 160, 160) : 0;
                     return (
                       <div
-                        key={d.day}
+                        key={`${d.label}-${i}`}
                         className="flex flex-1 flex-col items-center gap-1"
                       >
                         <div
                           className="w-full rounded-t bg-[linear-gradient(180deg,rgba(21,93,252,0.3)_0%,rgba(21,93,252,0.05)_100%)] transition-all"
-                          style={{ height: `${barHeight}px`, minHeight: '4px' }}
+                          style={{ height: `${barHeight}px`, minHeight: "4px" }}
                         />
                       </div>
                     );
                   })}
                 </div>
                 <div className="flex justify-around gap-1 pt-2 text-xs text-[#94A3B8]">
-                  {chartData.map((d) => (
-                    <span key={d.day}>{d.day}</span>
+                  {chartData.map((d, i) => (
+                    <span key={`${d.label}-${i}`}>{d.label}</span>
                   ))}
                 </div>
               </div>

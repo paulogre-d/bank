@@ -93,23 +93,143 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate last month (simplified - last 30 days)
+    // Calculate last month (simplified - last 30 days) and build byDay / byWeek / byMonth
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    oneYearAgo.setHours(0, 0, 0, 0);
+
     let lastMonth = 0;
+    const byDay: { label: string; value: number }[] = [];
+    const byWeek: { label: string; value: number }[] = [];
+    const byMonth: { label: string; value: number }[] = [];
+
     if (accountIds.length > 0) {
       const monthlyTransactionsSnapshot = await adminDb
         .collection('transactions')
         .where('fromAccountId', 'in', accountIds.slice(0, 10))
-        .where('amount', '<', 0) // Only outgoing transactions
+        .where('amount', '<', 0)
         .where('timestamp', '>=', Timestamp.fromDate(thirtyDaysAgo))
         .get();
 
       lastMonth = Math.abs(
         monthlyTransactionsSnapshot.docs.reduce((sum, doc) => sum + doc.data().amount, 0)
       );
+
+      // Build byDay: last 7 days (Sun–Sat labels)
+      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayTotals: Record<string, number> = {};
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        const key = d.toISOString().split('T')[0];
+        dayTotals[key] = 0;
+      }
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+      monthlyTransactionsSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const ts = data.timestamp?.toDate?.();
+        if (!ts) return;
+        const key = ts.toISOString().split('T')[0];
+        if (key >= sevenDaysAgoStr && dayTotals[key] !== undefined) {
+          dayTotals[key] += Math.abs(data.amount);
+        }
+      });
+      const sortedDayKeys = Object.keys(dayTotals).sort();
+      sortedDayKeys.forEach((key) => {
+        const d = new Date(key + 'T12:00:00');
+        byDay.push({ label: dayLabels[d.getDay()], value: Math.round(dayTotals[key] * 100) / 100 });
+      });
+
+      // Build byWeek: last 4 weeks
+      const weekStarts: string[] = [];
+      for (let w = 3; w >= 0; w--) {
+        const d = new Date();
+        d.setDate(d.getDate() - w * 7);
+        d.setHours(0, 0, 0, 0);
+        const key = d.toISOString().split('T')[0];
+        weekStarts.push(key);
+      }
+      const weekTotals: Record<string, number> = {};
+      weekStarts.forEach((k) => (weekTotals[k] = 0));
+      const thirtyDaysAgoTime = thirtyDaysAgo.getTime();
+      monthlyTransactionsSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const ts = data.timestamp?.toDate?.();
+        if (!ts) return;
+        const daysSinceStart = Math.floor((ts.getTime() - thirtyDaysAgoTime) / 86400000);
+        const weekIndex = Math.min(3, Math.floor(daysSinceStart / 7));
+        const weekKey = weekStarts[weekIndex];
+        if (weekTotals[weekKey] !== undefined) {
+          weekTotals[weekKey] += Math.abs(data.amount);
+        }
+      });
+      weekStarts.forEach((key) => {
+        const d = new Date(key + 'T12:00:00');
+        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        byWeek.push({ label, value: Math.round(weekTotals[key] * 100) / 100 });
+      });
+
+      // Build byMonth: last 12 months
+      const yearTransactionsSnapshot = await adminDb
+        .collection('transactions')
+        .where('fromAccountId', 'in', accountIds.slice(0, 10))
+        .where('amount', '<', 0)
+        .where('timestamp', '>=', Timestamp.fromDate(oneYearAgo))
+        .get();
+
+      const monthKeys: string[] = [];
+      for (let m = 11; m >= 0; m--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - m);
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        monthKeys.push(d.toISOString().slice(0, 7)); // YYYY-MM
+      }
+      const monthTotals: Record<string, number> = {};
+      monthKeys.forEach((k) => (monthTotals[k] = 0));
+      yearTransactionsSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const ts = data.timestamp?.toDate?.();
+        if (!ts) return;
+        const key = ts.toISOString().slice(0, 7);
+        if (monthTotals[key] !== undefined) {
+          monthTotals[key] += Math.abs(data.amount);
+        }
+      });
+      monthKeys.forEach((key) => {
+        const [y, m] = key.split('-').map(Number);
+        const label = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+        byMonth.push({ label, value: Math.round(monthTotals[key] * 100) / 100 });
+      });
+    }
+
+    // If no accounts, fill chart placeholders
+    if (byDay.length === 0) {
+      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const today = new Date().getDay();
+      for (let i = 6; i >= 0; i--) {
+        const idx = (today - i + 7) % 7;
+        byDay.push({ label: dayLabels[idx], value: 0 });
+      }
+    }
+    if (byWeek.length === 0) {
+      for (let w = 3; w >= 0; w--) {
+        const d = new Date();
+        d.setDate(d.getDate() - w * 7);
+        byWeek.push({ label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: 0 });
+      }
+    }
+    if (byMonth.length === 0) {
+      for (let m = 11; m >= 0; m--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - m);
+        byMonth.push({ label: d.toLocaleDateString('en-US', { month: 'short' }), value: 0 });
+      }
     }
 
     return successResponse({
@@ -119,6 +239,9 @@ export async function GET(request: NextRequest) {
       spendingAnalytics: {
         thisWeek,
         lastMonth,
+        byDay,
+        byWeek,
+        byMonth,
       },
     });
   } catch (error: any) {

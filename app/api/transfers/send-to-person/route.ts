@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { uid } = authResult;
-    const { fromAccountId, toAccountNumber, amount, frequency, scheduledDate } =
+    const { fromAccountId, toAccountNumber, amount, frequency, scheduledDate, category } =
       await request.json();
 
     if (!fromAccountId || !toAccountNumber || !amount || amount <= 0) {
@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
       const fromAccountName = fromAccount.name || 'Account';
       const beneficiaryName = `${beneficiaryUser.firstName} ${beneficiaryUser.lastName}`;
 
+      const categoryValue = typeof category === 'string' && category.trim() ? category.trim() : 'transfer';
       // Create transaction records
       const fromTransactionData = {
         referenceId,
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
         frequency: frequency || 'One-time Transfer',
         scheduledDate: scheduledDate || null,
         merchant: `Transfer to ${beneficiaryName}`,
-        category: 'transfer',
+        category: categoryValue,
         timestamp,
         createdAt: timestamp,
       };

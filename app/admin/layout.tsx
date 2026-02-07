@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { auth } from "@/lib/firebase/config";
+import { onAuthStateChanged } from "firebase/auth";
+import { adminLogout } from "@/lib/auth/admin";
 
 const navItems = [
   { href: "/admin", label: "Overview" },
@@ -17,10 +20,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (pathname === "/admin/login") return;
-    const ok = typeof window !== "undefined" && sessionStorage.getItem("admin_authenticated") === "true";
-    if (!ok) {
-      router.replace("/admin/login");
-    }
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.replace("/admin/login");
+      }
+    });
+
+    return () => unsubscribe();
   }, [pathname, router]);
 
   if (pathname === "/admin/login") {
@@ -69,8 +76,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="absolute bottom-0 left-0 right-0 border-t border-[#F1F5F9] p-4">
           <button
             type="button"
-            onClick={() => {
-              sessionStorage.removeItem("admin_authenticated");
+            onClick={async () => {
+              await adminLogout();
               router.push("/admin/login");
             }}
             className="flex h-12 w-full items-center gap-3 rounded-lg px-4 text-left text-sm text-[#62748E] hover:bg-[#F8FAFC]"

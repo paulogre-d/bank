@@ -2,12 +2,13 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth";
-import { getAccounts, getDashboardOverview, getTransferHistory } from "./client";
+import { getAccounts, getCards, getDashboardOverview, getTransferHistory } from "./client";
 
 export const queryKeys = {
   accounts: ["accounts"] as const,
   dashboard: ["dashboard", "overview"] as const,
   transferHistory: (accountId?: string) => ["transferHistory", accountId ?? "all"] as const,
+  cards: ["cards"] as const,
 };
 
 export function useAccounts() {
@@ -37,6 +38,15 @@ export function useTransferHistory(accountId?: string, limit = 50) {
   });
 }
 
+export function useCards() {
+  const user = useAuthStore((s) => s.user);
+  return useQuery({
+    queryKey: queryKeys.cards,
+    queryFn: getCards,
+    enabled: !!user,
+  });
+}
+
 export function useInvalidateAccounts() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
@@ -51,4 +61,9 @@ export function useInvalidateTransferHistory() {
   const queryClient = useQueryClient();
   return (accountId?: string) =>
     queryClient.invalidateQueries({ queryKey: queryKeys.transferHistory(accountId) });
+}
+
+export function useInvalidateCards() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: queryKeys.cards });
 }

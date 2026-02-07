@@ -2,18 +2,38 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Modal from "@/app/components/Modal";
-import {
-  MOCK_ACCOUNTS,
-  MOCK_CARDS,
-  MOCK_USERS,
-  getAccountsForUser,
-  getUserById,
-  type MockAccount,
-  type MockCard,
-} from "@/lib/admin-mock-data";
+import { getAdminAuthHeader } from "@/lib/auth/admin";
 import CardVisual from "@/components/CardVisual";
+
+type User = {
+  uid: string;
+  email: string;
+  accountNumber: string;
+  firstName: string;
+  lastName: string;
+};
+
+type Account = {
+  id: string;
+  name: string;
+  balance: number;
+  lastFour: string;
+  accountNumber: string;
+  accountType: "checking" | "savings" | "credit";
+  status: string;
+};
+
+type Card = {
+  id: string;
+  name: string;
+  cardNumber: string;
+  cardHolder: string;
+  expiry: string;
+  cvv: string;
+  status: string;
+};
 
 function generateAccountNumber(): string {
   return Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join("");
@@ -42,26 +62,85 @@ function formatCurrency(v: number) {
     : `-$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 }
 
-export default function AdminUsersPage() {
+function AdminUsersContent() {
   const searchParams = useSearchParams();
   const uidParam = searchParams.get("uid");
   const [selectedUid, setSelectedUid] = useState<string | null>(uidParam);
   const [search, setSearch] = useState("");
-  const [editBalanceAccount, setEditBalanceAccount] = useState<MockAccount | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userAccounts, setUserAccounts] = useState<Account[]>([]);
+  const [userCards, setUserCards] = useState<Card[]>([]);
+  const [editBalanceAccount, setEditBalanceAccount] = useState<Account | null>(null);
   const [editBalanceValue, setEditBalanceValue] = useState("");
-  const [createCardUser, setCreateCardUser] = useState<typeof MOCK_USERS[0] | null>(null);
+  const [createCardUser, setCreateCardUser] = useState<User | null>(null);
   const [addAccountOpen, setAddAccountOpen] = useState(false);
-  const [addAccountType, setAddAccountType] = useState<MockAccount["accountType"]>("checking");
+  const [addAccountType, setAddAccountType] = useState<"checking" | "savings" | "credit">("checking");
   const [addAccountName, setAddAccountName] = useState("");
-  const [accounts, setAccounts] = useState<MockAccount[]>(MOCK_ACCOUNTS);
-  const [cards, setCards] = useState<MockCard[]>(MOCK_CARDS);
-  const [viewCard, setViewCard] = useState<MockCard | null>(null);
+  const [viewCard, setViewCard] = useState<Card | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const user = selectedUid ? getUserById(selectedUid) : null;
-  const userAccounts = user ? accounts.filter((a) => a.userId === user.uid) : [];
-  const userCards = user ? cards.filter((c) => c.userId === user.uid) : [];
+  // Fetch users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const headers = await getAdminAuthHeader();
+        const res = await fetch("/api/admin/users?limit=100", { headers });
+        const json = await res.json();
+        if (json.success) {
+          setUsers(json.data.users);
+        }
+      } catch (error) {
+        console.error("Failed to fetch users:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
-  const filteredUsers = MOCK_USERS.filter(
+  // Fetch user details when selected
+  useEffect(() => {
+    if (!selectedUid) {
+      setSelectedUser(null);
+      setUserAccounts([]);
+      setUserCards([]);
+      return;
+    }
+
+    const fetchUserData = async () => {
+      try {
+        const headers = await getAdminAuthHeader();
+        const user = users.find((u) => u.uid === selectedUid);
+        if (user) {
+          setSelectedUser(user);
+        }
+
+        // Fetch accounts
+        const accountsRes = await fetch(`/api/admin/users/${selectedUid}/accounts`, { headers });
+        const accountsJson = await accountsRes.json();
+        if (accountsJson.success) {
+          setUserAccounts(accountsJson.data.accounts);
+        }
+
+        // Fetch cards
+        const cardsRes = await fetch(`/api/admin/users/${selectedUid}/cards`, { headers });
+        const cardsJson = await cardsRes.json();
+        if (cardsJson.success) {
+          setUserCards(cardsJson.data.cards);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+      }
+    };
+
+    if (users.length > 0) {
+      fetchUserData();
+    }
+  }, [selectedUid, users]);
+
+  const filteredUsers = users.filter(
     (u) =>
       u.firstName.toLowerCase().includes(search.toLowerCase()) ||
       u.lastName.toLowerCase().includes(search.toLowerCase()) ||
@@ -69,64 +148,110 @@ export default function AdminUsersPage() {
       u.accountNumber.includes(search)
   );
 
-  const handleSaveBalance = () => {
-    if (editBalanceAccount && editBalanceValue) {
-      const num = parseFloat(editBalanceValue);
-      if (!isNaN(num)) {
-        setAccounts((prev) =>
+  const handleSaveBalance = async () => {
+    if (!editBalanceAccount || !editBalanceValue) return;
+    const num = parseFloat(editBalanceValue);
+    if (isNaN(num)) return;
+
+    setSaving(true);
+    try {
+      const headers = await getAdminAuthHeader();
+      const res = await fetch(`/api/admin/accounts/${editBalanceAccount.id}/balance`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ balance: num }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setUserAccounts((prev) =>
           prev.map((a) => (a.id === editBalanceAccount.id ? { ...a, balance: num } : a))
         );
         setEditBalanceAccount(null);
         setEditBalanceValue("");
+      } else {
+        alert(json.error || "Failed to update balance");
       }
+    } catch (error) {
+      alert("Failed to update balance");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleAddAccount = () => {
-    if (!user) return;
-    const accountNum = generateAccountNumber();
-    const lastFour = accountNum.slice(-4);
-    const name =
-      addAccountName.trim() ||
-      (addAccountType === "checking"
-        ? "Checking"
-        : addAccountType === "savings"
-          ? "Savings"
-          : "Credit Card");
-    const newAccount: MockAccount = {
-      id: `acc-${Date.now()}`,
-      userId: user.uid,
-      accountNumber: accountNum,
-      name,
-      accountType: addAccountType,
-      balance: addAccountType === "credit" ? 0 : 0,
-      routingNumber: "123456789",
-      status: "active",
-      lastFour,
-      interestRate: addAccountType === "savings" ? 4.0 : addAccountType === "checking" ? 0.05 : undefined,
-    };
-    setAccounts((prev) => [...prev, newAccount]);
-    setAddAccountOpen(false);
-    setAddAccountName("");
-    setAddAccountType("checking");
+  const handleAddAccount = async () => {
+    if (!selectedUser) return;
+    setSaving(true);
+    try {
+      const headers = await getAdminAuthHeader();
+      const res = await fetch("/api/admin/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          userId: selectedUser.uid,
+          accountType: addAccountType,
+          name: addAccountName.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        // Refresh accounts
+        const accountsRes = await fetch(`/api/admin/users/${selectedUser.uid}/accounts`, { headers });
+        const accountsJson = await accountsRes.json();
+        if (accountsJson.success) {
+          setUserAccounts(accountsJson.data.accounts);
+        }
+        setAddAccountOpen(false);
+        setAddAccountName("");
+        setAddAccountType("checking");
+      } else {
+        alert(json.error || "Failed to create account");
+      }
+    } catch (error) {
+      alert("Failed to create account");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleCreateCard = () => {
+  const handleCreateCard = async () => {
     if (!createCardUser) return;
-    const cardHolder = `${createCardUser.firstName} ${createCardUser.lastName}`;
-    const newCard: MockCard = {
-      id: `card-${Date.now()}`,
-      userId: createCardUser.uid,
-      name: "Visa Infinite",
-      cardNumber: generateCardNumber(),
-      cardHolder,
-      expiry: generateExpiryThreeYears(),
-      cvv: generateCvv(),
-      status: "active",
-    };
-    setCards((prev) => [...prev, newCard]);
-    setViewCard(newCard);
-    setCreateCardUser(null);
+    setSaving(true);
+    try {
+      const headers = await getAdminAuthHeader();
+      const res = await fetch("/api/admin/cards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          userId: createCardUser.uid,
+          name: "Visa Infinite",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setViewCard({
+          id: json.data.id,
+          name: json.data.name,
+          cardNumber: json.data.cardNumber,
+          cardHolder: json.data.cardHolder,
+          expiry: json.data.expiry,
+          cvv: json.data.cvv,
+          status: json.data.status,
+        });
+        // Refresh cards
+        const cardsRes = await fetch(`/api/admin/users/${createCardUser.uid}/cards`, { headers });
+        const cardsJson = await cardsRes.json();
+        if (cardsJson.success) {
+          setUserCards(cardsJson.data.cards);
+        }
+        setCreateCardUser(null);
+      } else {
+        alert(json.error || "Failed to create card");
+      }
+    } catch (error) {
+      alert("Failed to create card");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -149,7 +274,12 @@ export default function AdminUsersPage() {
               />
             </div>
             <div className="max-h-[500px] overflow-auto">
-              {filteredUsers.map((u) => (
+              {loading ? (
+                <div className="px-6 py-4 text-sm text-[#62748E]">Loading users...</div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="px-6 py-4 text-sm text-[#62748E]">No users found</div>
+              ) : (
+                filteredUsers.map((u) => (
                 <button
                   key={u.uid}
                   type="button"
@@ -174,36 +304,38 @@ export default function AdminUsersPage() {
                   </div>
                   <span className="font-mono text-xs text-[#94A3B8]">{u.accountNumber}</span>
                 </button>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
 
         {/* User details */}
         <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
-          {user ? (
+          {selectedUser ? (
             <>
               <div className="border-b border-[#F1F5F9] p-6">
                 <div className="flex items-center gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9]">
                     <span className="text-lg font-semibold text-[#64748B]">
-                      {user.firstName[0]}
-                      {user.lastName[0]}
+                      {selectedUser.firstName[0]}
+                      {selectedUser.lastName[0]}
                     </span>
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-[#0F172B]">
-                      {user.firstName} {user.lastName}
+                      {selectedUser.firstName} {selectedUser.lastName}
                     </h2>
-                    <p className="text-sm text-[#62748E]">{user.email}</p>
-                    <p className="font-mono text-xs text-[#94A3B8]">{user.accountNumber}</p>
+                    <p className="text-sm text-[#62748E]">{selectedUser.email}</p>
+                    <p className="font-mono text-xs text-[#94A3B8]">{selectedUser.accountNumber}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex gap-2">
                   <button
                     type="button"
                     onClick={() => setAddAccountOpen(true)}
-                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] bg-white text-sm font-medium text-[#314158] transition hover:bg-[#F8FAFC]"
+                    disabled={saving}
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] bg-white text-sm font-medium text-[#314158] transition hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 5v14M5 12h14" />
@@ -212,8 +344,9 @@ export default function AdminUsersPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCreateCardUser(user)}
-                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[#155DFC] bg-white text-sm font-medium text-[#155DFC] transition hover:bg-[#EFF6FF]"
+                    onClick={() => setCreateCardUser(selectedUser)}
+                    disabled={saving}
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[#155DFC] bg-white text-sm font-medium text-[#155DFC] transition hover:bg-[#EFF6FF] disabled:opacity-50"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <rect x="2" y="4" width="20" height="14" rx="2" />
@@ -226,7 +359,10 @@ export default function AdminUsersPage() {
               <div className="p-6">
                 <h3 className="mb-4 text-sm font-semibold text-[#0F172B]">Accounts</h3>
                 <div className="space-y-4">
-                  {userAccounts.map((acc) => (
+                  {userAccounts.length === 0 ? (
+                    <p className="text-sm text-[#62748E]">No accounts yet</p>
+                  ) : (
+                    userAccounts.map((acc) => (
                     <div
                       key={acc.id}
                       className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4"
@@ -255,7 +391,8 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
                 <h3 className="mb-4 mt-6 text-sm font-semibold text-[#0F172B]">Cards</h3>
                 <div className="space-y-4">
@@ -334,9 +471,10 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={handleSaveBalance}
-                  className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white"
+                  disabled={saving}
+                  className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  Save
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </>
@@ -355,17 +493,17 @@ export default function AdminUsersPage() {
       >
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
           <h2 className="text-lg font-semibold text-[#0F172B]">Add Account</h2>
-          {user && (
+          {selectedUser && (
             <>
               <p className="mt-2 text-sm text-[#62748E]">
-                {user.firstName} {user.lastName} · {user.accountNumber}
+                {selectedUser.firstName} {selectedUser.lastName} · {selectedUser.accountNumber}
               </p>
               <div className="mt-6 space-y-4">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-[#314158]">Account Type</label>
                   <select
                     value={addAccountType}
-                    onChange={(e) => setAddAccountType(e.target.value as MockAccount["accountType"])}
+                    onChange={(e) => setAddAccountType(e.target.value as "checking" | "savings" | "credit")}
                     className="h-12 w-full rounded-xl border border-[#E2E8F0] bg-white px-4 text-sm text-[#0F172B] focus:border-[#155DFC] focus:outline-none"
                   >
                     <option value="checking">Checking</option>
@@ -404,9 +542,10 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={handleAddAccount}
-                  className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white"
+                  disabled={saving}
+                  className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  Add Account
+                  {saving ? "Creating…" : "Add Account"}
                 </button>
               </div>
             </>
@@ -437,9 +576,10 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={handleCreateCard}
-                  className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white"
+                  disabled={saving}
+                  className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  Create Card
+                  {saving ? "Creating…" : "Create Card"}
                 </button>
               </div>
             </>
@@ -488,5 +628,13 @@ export default function AdminUsersPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function AdminUsersPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[400px] items-center justify-center text-[#62748E]">Loading…</div>}>
+      <AdminUsersContent />
+    </Suspense>
   );
 }

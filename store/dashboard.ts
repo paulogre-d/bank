@@ -19,9 +19,17 @@ export interface DashboardTransaction {
   accountId: string;
 }
 
+export interface SpendingDataPoint {
+  label: string;
+  value: number;
+}
+
 export interface SpendingAnalytics {
   thisWeek: number;
   lastMonth: number;
+  byDay: SpendingDataPoint[];
+  byWeek: SpendingDataPoint[];
+  byMonth: SpendingDataPoint[];
 }
 
 interface DashboardState {
@@ -50,7 +58,13 @@ const initialState = {
   totalBalance: 0,
   accounts: [],
   recentTransactions: [],
-  spendingAnalytics: { thisWeek: 0, lastMonth: 0 },
+  spendingAnalytics: {
+    thisWeek: 0,
+    lastMonth: 0,
+    byDay: [],
+    byWeek: [],
+    byMonth: [],
+  },
   loading: false,
   error: null as string | null,
   lastFetched: null as number | null,
@@ -87,7 +101,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         totalBalance: json.data.totalBalance ?? 0,
         accounts: json.data.accounts ?? [],
         recentTransactions: json.data.recentTransactions ?? [],
-        spendingAnalytics: json.data.spendingAnalytics ?? { thisWeek: 0, lastMonth: 0 },
+        spendingAnalytics: json.data.spendingAnalytics ?? {
+  thisWeek: 0,
+  lastMonth: 0,
+  byDay: [],
+  byWeek: [],
+  byMonth: [],
+},
       });
     } catch (e: any) {
       setError(e?.message || 'Failed to load dashboard');

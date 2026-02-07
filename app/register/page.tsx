@@ -209,7 +209,7 @@ export default function RegisterPage() {
                         state: values.state,
                         zip: values.zip,
                       },
-                      accountType: values.accountType,
+                      accountType: (values.accountType === "checking" || values.accountType === "savings" ? values.accountType : "checking"),
                       password: values.password,
                     });
                     setShowSuccessModal(true);

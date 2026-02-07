@@ -1,31 +1,95 @@
 "use client";
 
 import Link from "next/link";
-import {
-  MOCK_ACCOUNTS,
-  MOCK_TRANSACTIONS,
-  MOCK_USERS,
-} from "@/lib/admin-mock-data";
+import { useEffect, useState } from "react";
+import { getAdminAuthHeader } from "@/lib/auth/admin";
+
+type Stats = {
+  totalUsers: number;
+  totalAccounts: number;
+  totalBalance: number;
+  transactionsToday: number;
+};
+
+type User = {
+  uid: string;
+  email: string;
+  accountNumber: string;
+  firstName: string;
+  lastName: string;
+};
+
+type Transaction = {
+  id: string;
+  referenceId: string;
+  type: string;
+  amount: number;
+  merchant: string | null;
+  timestamp: string;
+};
 
 export default function AdminOverviewPage() {
-  const totalBalance = MOCK_ACCOUNTS.reduce((s, a) => s + (a.balance > 0 ? a.balance : 0), 0);
-  const totalLoans = MOCK_ACCOUNTS.filter((a) => a.accountType === "credit").reduce((s, a) => s + Math.abs(a.balance), 0);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [recentUsers, setRecentUsers] = useState<User[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const stats = [
-    { label: "Total Users", value: MOCK_USERS.length, href: "/admin/users", color: "bg-[#155DFC]" },
-    { label: "Total Accounts", value: MOCK_ACCOUNTS.length, href: "/admin/users", color: "bg-[#0F172B]" },
-    { label: "Total Balance", value: `$${totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, href: "/admin/users", color: "bg-[#00A63E]" },
-    { label: "Transactions Today", value: MOCK_TRANSACTIONS.filter((t) => t.timestamp.startsWith("2024-01-28")).length, href: "/admin/transactions", color: "bg-[#E17100]" },
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = await getAdminAuthHeader();
+        
+        // Fetch stats
+        const statsRes = await fetch("/api/admin/stats", { headers });
+        const statsJson = await statsRes.json();
+        if (statsJson.success) {
+          setStats(statsJson.data);
+        }
+
+        // Fetch recent users
+        const usersRes = await fetch("/api/admin/users?limit=5", { headers });
+        const usersJson = await usersRes.json();
+        if (usersJson.success) {
+          setRecentUsers(usersJson.data.users);
+        }
+
+        // Fetch recent transactions
+        const txRes = await fetch("/api/admin/transactions?limit=5", { headers });
+        const txJson = await txRes.json();
+        if (txJson.success) {
+          setRecentTransactions(txJson.data.transactions);
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading || !stats) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-sm text-[#62748E]">Loading...</div>
+      </div>
+    );
+  }
+
+  const statCards = [
+    { label: "Total Users", value: stats.totalUsers.toString(), href: "/admin/users", color: "bg-[#155DFC]" },
+    { label: "Total Accounts", value: stats.totalAccounts.toString(), href: "/admin/users", color: "bg-[#0F172B]" },
+    { label: "Total Balance", value: `$${stats.totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, href: "/admin/users", color: "bg-[#00A63E]" },
+    { label: "Transactions Today", value: stats.transactionsToday.toString(), href: "/admin/transactions", color: "bg-[#E17100]" },
   ];
-
-  const recentUsers = MOCK_USERS.slice(0, 5);
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-[#0F172B]">Admin Overview</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Link
             key={stat.label}
             href={stat.href}
@@ -87,25 +151,31 @@ export default function AdminOverviewPage() {
             <p className="text-sm text-[#62748E]">Latest activity</p>
           </div>
           <div className="divide-y divide-[#F1F5F9]">
-            {MOCK_TRANSACTIONS.slice(0, 5).map((tx) => (
-              <Link
-                key={tx.id}
-                href="/admin/transactions"
-                className="flex items-center justify-between gap-4 px-6 py-4 transition hover:bg-[#F8FAFC]"
-              >
-                <div>
-                  <p className="text-sm font-medium text-[#0F172B]">{tx.merchant ?? tx.referenceId}</p>
-                  <p className="text-xs text-[#62748E]">{tx.timestamp.slice(0, 10)} · {tx.type}</p>
-                </div>
-                <span
-                  className={`text-sm font-semibold ${
-                    tx.amount > 0 ? "text-[#00A63E]" : "text-[#DC2626]"
-                  }`}
+            {recentTransactions.length === 0 ? (
+              <div className="px-6 py-4 text-sm text-[#62748E]">No recent transactions</div>
+            ) : (
+              recentTransactions.map((tx) => (
+                <Link
+                  key={tx.id}
+                  href="/admin/transactions"
+                  className="flex items-center justify-between gap-4 px-6 py-4 transition hover:bg-[#F8FAFC]"
                 >
-                  {tx.amount > 0 ? "+" : ""}${Math.abs(tx.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                </span>
-              </Link>
-            ))}
+                  <div>
+                    <p className="text-sm font-medium text-[#0F172B]">{tx.merchant ?? tx.referenceId}</p>
+                    <p className="text-xs text-[#62748E]">
+                      {tx.timestamp ? (typeof tx.timestamp === 'string' ? tx.timestamp.slice(0, 10) : new Date(tx.timestamp).toISOString().slice(0, 10)) : 'N/A'} · {tx.type}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-sm font-semibold ${
+                      tx.amount > 0 ? "text-[#00A63E]" : "text-[#DC2626]"
+                    }`}
+                  >
+                    {tx.amount > 0 ? "+" : ""}${Math.abs(tx.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </div>

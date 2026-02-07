@@ -1,15 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Modal from "@/app/components/Modal";
-import {
-  MOCK_ACCOUNTS,
-  MOCK_TRANSACTIONS,
-  MOCK_USERS,
-  getAccountById,
-  getAccountsForUser,
-  getUserById,
-} from "@/lib/admin-mock-data";
+import { getAdminAuthHeader } from "@/lib/auth/admin";
+import { TRANSACTION_CATEGORIES } from "@/lib/constants/transactions";
+
+type User = {
+  uid: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+};
+
+type Account = {
+  id: string;
+  name: string;
+  balance: number;
+  lastFour: string;
+  accountNumber?: string;
+  accountType: string;
+  status: string;
+};
+
+type Transaction = {
+  id: string;
+  referenceId: string;
+  type: string;
+  fromAccountId: string | null;
+  toAccountId: string | null;
+  amount: number;
+  status: string;
+  merchant: string | null;
+  category: string;
+  timestamp: string;
+};
 
 function formatCurrency(v: number) {
   const sign = v >= 0 ? "+" : "-";
@@ -44,17 +68,24 @@ function generateReferenceId() {
 }
 
 export default function AdminTransactionsPage() {
+  const [users, setUsers] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [userAccounts, setUserAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editModalTx, setEditModalTx] = useState<(typeof MOCK_TRANSACTIONS)[0] | null>(null);
-  const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [editModalTx, setEditModalTx] = useState<Transaction | null>(null);
 
   const [createForm, setCreateForm] = useState({
     accountId: "",
     date: new Date().toISOString().slice(0, 16),
     referenceId: "",
     type: "internal" as "internal" | "send-to-person" | "bill-payment" | "wire-transfer",
+    category: "Transfer",
     description: "",
     amount: "",
     debitCredit: "debit" as "debit" | "credit",
@@ -68,15 +99,68 @@ export default function AdminTransactionsPage() {
     status: "completed" as "completed" | "pending" | "failed",
   });
 
-  const userAccounts = selectedUserId ? getAccountsForUser(selectedUserId) : [];
-  const filteredTx = selectedAccountId
-    ? transactions.filter(
-        (t) => t.fromAccountId === selectedAccountId || t.toAccountId === selectedAccountId
-      )
-    : [];
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const headers = await getAdminAuthHeader();
+        const res = await fetch("/api/admin/users?limit=100", { headers });
+        const json = await res.json();
+        if (json.success) setUsers(json.data.users ?? []);
+      } catch (e) {
+        console.error("Failed to fetch users:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
-  const selectedAccount = selectedAccountId ? getAccountById(selectedAccountId) : null;
-  const selectedUser = selectedUserId ? getUserById(selectedUserId) : selectedAccount ? getUserById(selectedAccount.userId) : null;
+  useEffect(() => {
+    if (!selectedUserId) {
+      setUserAccounts([]);
+      return;
+    }
+    const fetchAccounts = async () => {
+      try {
+        const headers = await getAdminAuthHeader();
+        const res = await fetch(`/api/admin/users/${selectedUserId}/accounts`, { headers });
+        const json = await res.json();
+        if (json.success) setUserAccounts(json.data.accounts ?? []);
+      } catch (e) {
+        console.error("Failed to fetch accounts:", e);
+        setUserAccounts([]);
+      }
+    };
+    fetchAccounts();
+  }, [selectedUserId]);
+
+  const fetchTransactions = useCallback(async (accountId: string | null) => {
+    if (!accountId) {
+      setTransactions([]);
+      return;
+    }
+    setTransactionsLoading(true);
+    try {
+      const headers = await getAdminAuthHeader();
+      const res = await fetch(`/api/admin/transactions?accountId=${accountId}&limit=100`, { headers });
+      const json = await res.json();
+      if (json.success) setTransactions(json.data.transactions ?? []);
+      else setTransactions([]);
+    } catch (e) {
+      console.error("Failed to fetch transactions:", e);
+      setTransactions([]);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions(selectedAccountId);
+  }, [selectedAccountId, fetchTransactions]);
+
+  const filteredTx = transactions;
+  const selectedAccount = selectedAccountId ? userAccounts.find((a) => a.id === selectedAccountId) ?? null : null;
+  const selectedUser = selectedUserId ? users.find((u) => u.uid === selectedUserId) ?? null : null;
 
   const handleUserSelect = (uid: string | null) => {
     setSelectedUserId(uid);
@@ -118,9 +202,14 @@ export default function AdminTransactionsPage() {
             <p className="mt-1 text-xs text-[#62748E]">Select a user, then an account to view transactions</p>
           </div>
           <div className="max-h-[400px] overflow-auto p-2">
-            {MOCK_USERS.map((u) => {
-              const accounts = getAccountsForUser(u.uid);
+            {loading ? (
+              <div className="py-8 text-center text-sm text-[#62748E]">Loading users…</div>
+            ) : users.length === 0 ? (
+              <div className="py-8 text-center text-sm text-[#62748E]">No users found</div>
+            ) : (
+            users.map((u) => {
               const isUserSelected = selectedUserId === u.uid;
+              const displayAccounts = isUserSelected ? userAccounts : [];
               return (
                 <div key={u.uid} className="mb-2">
                   <button
@@ -154,7 +243,7 @@ export default function AdminTransactionsPage() {
                   </button>
                   {isUserSelected && (
                     <div className="ml-4 mt-1 space-y-1 border-l-2 border-[#E2E8F0] pl-3">
-                      {accounts.map((acc) => {
+                      {displayAccounts.map((acc) => {
                         const isAccSelected = selectedAccountId === acc.id;
                         return (
                           <button
@@ -174,7 +263,8 @@ export default function AdminTransactionsPage() {
                   )}
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </div>
 
@@ -192,6 +282,10 @@ export default function AdminTransactionsPage() {
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <p className="text-sm text-[#62748E]">Select a user, then an account to view transactions</p>
                 <p className="mt-1 text-xs text-[#94A3B8]">Use the panel on the left to browse users and their accounts</p>
+              </div>
+            ) : transactionsLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-sm text-[#62748E]">Loading transactions…</p>
               </div>
             ) : (
             <div className="overflow-x-auto">
@@ -243,7 +337,7 @@ export default function AdminTransactionsPage() {
                           amount: String(Math.abs(tx.amount)),
                           debitCredit: tx.amount >= 0 ? "credit" : "debit",
                           description: tx.merchant ?? "",
-                          status: tx.status,
+                          status: (tx.status === "completed" || tx.status === "pending" || tx.status === "failed" ? tx.status : "completed") as "completed" | "pending" | "failed",
                         });
                       }}
                       className="text-sm font-medium text-[#155DFC] hover:underline"
@@ -266,11 +360,13 @@ export default function AdminTransactionsPage() {
         isOpen={createModalOpen}
         onClose={() => {
           setCreateModalOpen(false);
+          setCreateError(null);
           setCreateForm({
             accountId: "",
             date: new Date().toISOString().slice(0, 16),
             referenceId: "",
             type: "internal",
+            category: "Transfer",
             description: "",
             amount: "",
             debitCredit: "debit",
@@ -281,8 +377,11 @@ export default function AdminTransactionsPage() {
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
           <h2 className="text-lg font-semibold text-[#0F172B]">Create Transaction</h2>
           <p className="mt-2 text-sm text-[#62748E]">
-            Add a new transaction for an account. (Mock – no API call)
+            Add a manual transaction for an account with date, time, type, and amount.
           </p>
+          {createError && (
+            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{createError}</p>
+          )}
             <div className="mt-6 space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-[#314158]">Debit / Credit</label>
@@ -322,14 +421,11 @@ export default function AdminTransactionsPage() {
                 className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-white px-4 text-sm text-[#0F172B] focus:border-[#155DFC] focus:outline-none"
               >
                 <option value="">Select account</option>
-                {(selectedUserId ? getAccountsForUser(selectedUserId) : MOCK_ACCOUNTS).map((acc) => {
-                  const u = getUserById(acc.userId);
-                  return (
-                    <option key={acc.id} value={acc.id}>
-                      {u?.firstName} {u?.lastName} · {acc.name} (•••• {acc.lastFour})
-                    </option>
-                  );
-                })}
+                {userAccounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {selectedUser?.firstName} {selectedUser?.lastName} · {acc.name} (•••• {acc.lastFour})
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -376,6 +472,20 @@ export default function AdminTransactionsPage() {
                 <option value="send-to-person">Send to Person</option>
                 <option value="bill-payment">Bill Payment</option>
                 <option value="wire-transfer">Wire Transfer</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#314158]">Category (optional)</label>
+              <select
+                value={createForm.category}
+                onChange={(e) => setCreateForm((f) => ({ ...f, category: e.target.value }))}
+                className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-white px-4 text-sm text-[#0F172B] focus:border-[#155DFC] focus:outline-none"
+              >
+                {TRANSACTION_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -427,6 +537,7 @@ export default function AdminTransactionsPage() {
                   date: new Date().toISOString().slice(0, 16),
                   referenceId: "",
                   type: "internal",
+                  category: "Transfer",
                   description: "",
                   amount: "",
                   debitCredit: "debit",
@@ -439,41 +550,59 @@ export default function AdminTransactionsPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
+              disabled={createSubmitting || !createForm.accountId || !createForm.amount?.trim()}
+              onClick={async () => {
                 const rawAmount = parseFloat(createForm.amount);
-                if (createForm.accountId && !isNaN(rawAmount)) {
-                  const amount = createForm.debitCredit === "debit" ? -Math.abs(rawAmount) : Math.abs(rawAmount);
-                  const date = new Date(createForm.date);
-                  const ref =
-                    createForm.referenceId.trim() || generateReferenceId();
-                  const newTx = {
-                    id: `tx-${Date.now()}`,
-                    referenceId: ref,
-                    type: createForm.type,
-                    fromAccountId: createForm.accountId,
-                    amount,
-                    status: createForm.status,
-                    timestamp: date.toISOString(),
-                    merchant: createForm.description || undefined,
-                    category: createForm.description ? "Transfer" : undefined,
-                  };
-                  setTransactions((prev) => [...prev, newTx]);
+                if (!createForm.accountId || isNaN(rawAmount) || rawAmount <= 0) {
+                  setCreateError("Please enter a valid amount.");
+                  return;
                 }
-                setCreateModalOpen(false);
-                setCreateForm({
-                  accountId: "",
-                  date: new Date().toISOString().slice(0, 16),
-                  referenceId: "",
-                  type: "internal",
-                  description: "",
-                  amount: "",
-                  debitCredit: "debit",
-                  status: "completed",
-                });
+                const amount = createForm.debitCredit === "debit" ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+                setCreateSubmitting(true);
+                setCreateError(null);
+                try {
+                  const headers = await getAdminAuthHeader();
+                  const res = await fetch("/api/admin/transactions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", ...headers },
+                    body: JSON.stringify({
+                      accountId: createForm.accountId,
+                      amount,
+                      timestamp: new Date(createForm.date).toISOString(),
+                      type: createForm.type,
+                      merchant: createForm.description.trim() || undefined,
+                      category: createForm.category,
+                      referenceId: createForm.referenceId.trim() || undefined,
+                      status: createForm.status,
+                    }),
+                  });
+                  const json = await res.json();
+                  if (!json.success) {
+                    setCreateError(json.error || "Failed to create transaction");
+                    return;
+                  }
+                  setCreateModalOpen(false);
+                  setCreateForm({
+                    accountId: "",
+                    date: new Date().toISOString().slice(0, 16),
+                    referenceId: "",
+                    type: "internal",
+                    category: "Transfer",
+                    description: "",
+                    amount: "",
+                    debitCredit: "debit",
+                    status: "completed",
+                  });
+                  fetchTransactions(selectedAccountId);
+                } catch (e: any) {
+                  setCreateError(e?.message || "Failed to create transaction");
+                } finally {
+                  setCreateSubmitting(false);
+                }
               }}
-              className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white"
+              className="h-11 flex-1 rounded-xl bg-[#155DFC] text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create
+              {createSubmitting ? "Creating…" : "Create"}
             </button>
           </div>
         </div>
@@ -582,7 +711,7 @@ export default function AdminTransactionsPage() {
                             ? {
                                 ...t,
                                 amount,
-                                merchant: editForm.description || undefined,
+                                merchant: editForm.description || null,
                                 status: editForm.status,
                               }
                             : t

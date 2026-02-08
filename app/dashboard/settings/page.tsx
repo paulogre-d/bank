@@ -1,8 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { getAuthHeader, reauthenticateAndUpdatePassword } from "@/lib/auth/client";
 import { useAuthStore } from "@/store/auth";
+
+// --- Animation variants (matching Dashboard) ---
+const stagger = {
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const fadeUp = {
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+};
+
+const fadeUpTransition = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
 
 type TabId = "profile" | "security";
 
@@ -151,10 +164,21 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[#0F172B]">Settings</h1>
+    <motion.div
+      className="space-y-6"
+      initial="initial"
+      animate="animate"
+      variants={stagger}
+    >
+      <motion.h1
+        className="text-xl font-bold text-[#0F172B] sm:text-2xl"
+        variants={fadeUp}
+        transition={fadeUpTransition}
+      >
+        Settings
+      </motion.h1>
 
-      <div className="flex gap-1 border-b border-[#E2E8F0]">
+      <motion.div className="flex gap-1 border-b border-[#E2E8F0]" variants={fadeUp} transition={fadeUpTransition}>
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -170,15 +194,15 @@ export default function SettingsPage() {
             )}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {tab === "profile" && (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
-          <div className="border-b border-[#F1F5F9] p-6">
-            <h2 className="text-lg font-semibold text-[#0F172B]">Profile Information</h2>
-            <p className="mt-1 text-sm text-[#62748E]">Update your personal details</p>
+        <motion.div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm" variants={fadeUp} transition={fadeUpTransition}>
+          <div className="border-b border-[#F1F5F9] p-4 sm:p-6">
+            <h2 className="text-base font-semibold text-[#0F172B] sm:text-lg">Profile Information</h2>
+            <p className="mt-0.5 text-sm text-[#62748E] sm:mt-1">Update your personal details</p>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {saveMessage && (
               <div
                 className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
@@ -191,12 +215,12 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <div className="mb-8 flex items-center gap-6">
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#155DFC]">
+            <div className="mb-6 flex items-center gap-4 sm:mb-8 sm:gap-6">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#155DFC] sm:h-24 sm:w-24">
                 {user?.avatarUrl ? (
                   <img src={user.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
                 ) : (
-                  <span className="text-2xl font-semibold text-white">{initials}</span>
+                  <span className="text-xl font-semibold text-white sm:text-2xl">{initials}</span>
                 )}
               </div>
               <div>
@@ -335,17 +359,17 @@ export default function SettingsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {tab === "security" && (
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
-            <div className="border-b border-[#F1F5F9] p-6">
-              <h2 className="text-lg font-semibold text-[#0F172B]">Change Password</h2>
-              <p className="mt-1 text-sm text-[#62748E]">Update your password to keep your account secure</p>
+        <motion.div className="space-y-6" variants={stagger} initial="initial" animate="animate">
+          <motion.div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm" variants={fadeUp} transition={fadeUpTransition}>
+            <div className="border-b border-[#F1F5F9] p-4 sm:p-6">
+              <h2 className="text-base font-semibold text-[#0F172B] sm:text-lg">Change Password</h2>
+              <p className="mt-0.5 text-sm text-[#62748E] sm:mt-1">Update your password to keep your account secure</p>
             </div>
-            <form className="p-6" onSubmit={handleChangePassword}>
+            <form className="p-4 sm:p-6" onSubmit={handleChangePassword}>
               {passwordMessage && (
                 <div
                   className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
@@ -410,9 +434,9 @@ export default function SettingsPage() {
                 </button>
               </div>
             </form>
-          </div>
+          </motion.div>
 
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+          <motion.div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm" variants={fadeUp} transition={{ ...fadeUpTransition, delay: 0.05 }}>
             <div className="flex items-center justify-between gap-4 p-6">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF]">
@@ -446,9 +470,9 @@ export default function SettingsPage() {
                 />
               </button>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+          <motion.div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm" variants={fadeUp} transition={{ ...fadeUpTransition, delay: 0.1 }}>
             <div className="border-b border-[#F1F5F9] p-6">
               <h2 className="text-lg font-semibold text-[#0F172B]">Active Sessions</h2>
               <p className="mt-1 text-sm text-[#62748E]">Manage devices where you&apos;re logged in</p>
@@ -479,9 +503,9 @@ export default function SettingsPage() {
                 </span>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

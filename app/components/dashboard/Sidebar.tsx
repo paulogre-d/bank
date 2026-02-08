@@ -16,7 +16,7 @@ const navItems = [
 ];
 
 function NavIcon({ name, active }: { name: string; active: boolean }) {
-  const stroke = active ? "#155DFC" : "#90A1B9";
+  const stroke = active ? "#155DFC" : "#0F172B";
   const icons: Record<string, React.ReactNode> = {
     Dashboard: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -106,15 +106,15 @@ export default function Sidebar({ onMenuClick, onLinkClick }: SidebarProps) {
         </button>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px]">
           <Image
-            src="/images/sidebar/logo-icon.svg"
-            alt="VyrBank"
+            src="/Container.svg"
+            alt="Vertex Premium"
             width={40}
             height={40}
             className="h-10 w-10"
           />
         </div>
         <span className="text-xl font-bold tracking-tight text-[#1D293D]" style={{ letterSpacing: "-0.025em" }}>
-          VyrBank
+          Vertex Premium
         </span>
       </div>
 
@@ -140,7 +140,7 @@ export default function Sidebar({ onMenuClick, onLinkClick }: SidebarProps) {
               </span>
               <span
                 className={`text-base font-normal ${
-                  isActive ? "text-[#1447E6]" : "text-[#62748E]"
+                  isActive ? "text-[#1447E6]" : "text-[#0F172B]"
                 }`}
               >
                 {item.label}

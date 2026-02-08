@@ -1,13 +1,14 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * One-time script to set the custom claim `admin: true` on a Firebase user.
  * Run from project root with env loaded (e.g. from .env.local).
  *
  * Usage:
  *   node --env-file=.env.local scripts/set-admin-claim.js <email>
- *   node --env-file=.env.local scripts/set-admin-claim.js admin@vyrbank.com
+ *   node --env-file=.env.local scripts/set-admin-claim.js admin@vertexpremium.com
  *
  * Or: npm run set-admin
- * Or: npm run set-admin -- admin@vyrbank.com
+ * Or: npm run set-admin -- admin@vertexpremium.com
  *
  * After running, the user must sign out and sign in again so the new claim is in their ID token.
  */

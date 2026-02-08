@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 const DASHBOARD_PATH = '/dashboard';
 
@@ -23,14 +24,7 @@ export function GuestRoute({ children }: { children: React.ReactNode }) {
   }, [user, loading, hydrated, router]);
 
   if (!hydrated || loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#155DFC] border-r-transparent" />
-          <p className="text-[#45556C]">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingOverlay />;
   }
 
   if (user) {

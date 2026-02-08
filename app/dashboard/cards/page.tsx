@@ -1,11 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useCards, useInvalidateCards, useAccounts, useInvalidateAccounts } from "@/lib/api/hooks";
 import { updateCard, fundCard, type CardItem as ApiCard } from "@/lib/api/client";
 import { InlineError } from "@/components/InlineError";
 import { Toast } from "@/components/Toast";
 import Modal from "@/app/components/Modal";
+
+// --- Animation variants (matching Dashboard) ---
+const stagger = {
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const fadeUp = {
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+};
+
+const fadeUpTransition = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -187,9 +200,18 @@ export default function CardsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-[#0F172B]">Cards Management</h1>
+    <motion.div
+      className="space-y-6"
+      initial="initial"
+      animate="animate"
+      variants={stagger}
+    >
+      <motion.div
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        variants={fadeUp}
+        transition={fadeUpTransition}
+      >
+        <h1 className="text-xl font-bold text-[#0F172B] sm:text-2xl">Cards Management</h1>
         <button
           type="button"
           disabled
@@ -201,11 +223,11 @@ export default function CardsPage() {
           </svg>
           New Virtual Card
         </button>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="flex flex-col gap-6">
-          <div className="relative">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px] lg:gap-6">
+        <motion.div className="flex flex-col gap-6" variants={stagger}>
+          <motion.div className="relative" variants={fadeUp} transition={fadeUpTransition}>
             <div
               ref={carouselRef}
               className="flex gap-6 overflow-x-auto pb-4 scroll-smooth scrollbar-hide"
@@ -216,7 +238,7 @@ export default function CardsPage() {
                   key={card.id}
                   type="button"
                   onClick={() => scrollToIndex(index)}
-                  className={`relative min-w-[340px] shrink-0 snap-center overflow-hidden rounded-2xl sm:min-w-[380px] ${
+                  className={`relative min-w-[280px] shrink-0 snap-center overflow-hidden rounded-2xl sm:min-w-[380px] ${
                     cards.length > 1 && selectedId === card.id
                       ? "ring-2 ring-[#155DFC] ring-offset-2"
                       : ""
@@ -286,12 +308,16 @@ export default function CardsPage() {
                 />
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {selected && (
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-base font-semibold text-[#0F172B]">Card Controls</h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <motion.div
+              className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm sm:p-6"
+              variants={fadeUp}
+              transition={{ ...fadeUpTransition, delay: 0.1 }}
+            >
+              <h2 className="mb-3 text-sm font-semibold text-[#0F172B] sm:mb-4 sm:text-base">Card Controls</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => toggleFrozen(selected.id)}
@@ -371,14 +397,15 @@ export default function CardsPage() {
                   <span className="text-center text-sm font-medium text-[#314158]">Copy Number</span>
                 </button>
               </div>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
+
 
         {selected && (
-          <div className="flex flex-col gap-6">
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-base font-semibold text-[#0F172B]">Card Details</h2>
+          <motion.div className="flex flex-col gap-4 sm:gap-6" variants={stagger}>
+            <motion.div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm sm:p-6" variants={fadeUp} transition={fadeUpTransition}>
+              <h2 className="mb-3 text-sm font-semibold text-[#0F172B] sm:mb-4 sm:text-base">Card Details</h2>
               <div className="space-y-4">
                 <div>
                   <p className="text-xs font-normal text-[#62748E]">Current Balance</p>
@@ -401,10 +428,10 @@ export default function CardsPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center gap-2">
+            <motion.div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm sm:p-6" variants={fadeUp} transition={{ ...fadeUpTransition, delay: 0.05 }}>
+              <div className="mb-3 flex items-center gap-2 sm:mb-4">
                 <svg
                   className="h-5 w-5 text-[#155DFC]"
                   viewBox="0 0 24 24"
@@ -450,9 +477,9 @@ export default function CardsPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-[#FED7AA] bg-[#FFF7ED] p-6">
+            <motion.div className="rounded-2xl border border-[#FED7AA] bg-[#FFF7ED] p-4 sm:p-6" variants={fadeUp} transition={{ ...fadeUpTransition, delay: 0.1 }}>
               <div className="flex gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FED7AA]">
                   <svg
@@ -483,8 +510,8 @@ export default function CardsPage() {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
       </div>
 
@@ -585,6 +612,6 @@ export default function CardsPage() {
         visible={toastVisible}
         onDismiss={() => setToastVisible(false)}
       />
-    </div>
+    </motion.div>
   );
 }

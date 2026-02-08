@@ -26,21 +26,21 @@ export default function TopNav({ onMenuClick, sidebarCollapsed = true }: TopNavP
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#F1F5F9] bg-white px-4 lg:px-8">
-      {/* Hamburger - when sidebar is collapsed (mobile) or user collapsed it (desktop) */}
-      {sidebarCollapsed && (
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-[#45556C] transition hover:bg-slate-100 hover:text-[#0F172B]"
-          aria-label="Toggle sidebar"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
-      )}
+      {/* Hamburger - always on mobile, only when collapsed on desktop */}
+      <button
+        type="button"
+        onClick={onMenuClick}
+        className={`flex h-10 w-10 items-center justify-center rounded-lg text-[#45556C] transition hover:bg-slate-100 hover:text-[#0F172B] ${
+          sidebarCollapsed ? "" : "lg:hidden"
+        }`}
+        aria-label="Toggle sidebar"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
       <div className="flex flex-1 items-center justify-end gap-2">
         {/* Search */}
         <div className="hidden items-center rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2 md:flex">
@@ -66,7 +66,10 @@ export default function TopNav({ onMenuClick, sidebarCollapsed = true }: TopNavP
           </svg>
           <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
         </button>
-        {/* User avatar - desktop */}
+        {/* User avatar - compact on mobile, full on desktop */}
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#155DFC] text-xs font-bold text-white lg:hidden">
+          {initials}
+        </div>
         <div className="hidden items-center gap-3 rounded-xl border border-[#E2E8F0] px-3 py-2 lg:flex">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#155DFC] text-xs font-bold text-white">
             {initials}

@@ -2,9 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { motion } from "framer-motion";
 import { useAccounts, useTransferHistory } from "@/lib/api/hooks";
 import { AccountsSkeleton } from "@/components/skeletons/AccountsSkeleton";
 import { InlineError } from "@/components/InlineError";
+
+// --- Animation variants (matching Dashboard) ---
+const stagger = {
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const fadeUp = {
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+};
+
+const fadeUpTransition = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
 
 type Account = {
   id: string;
@@ -258,66 +272,137 @@ export default function AccountsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[#0F172B]">Accounts</h1>
+    <motion.div
+      className="space-y-5 sm:space-y-6"
+      initial="initial"
+      animate="animate"
+      variants={stagger}
+    >
+      <motion.h1
+        className="text-xl font-bold text-[#0F172B] sm:text-2xl"
+        variants={fadeUp}
+        transition={fadeUpTransition}
+      >
+        Accounts
+      </motion.h1>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,383px)_1fr]">
-        {/* Left: Account cards */}
-        <div className="flex flex-col gap-4">
-          {accounts.map((acc) => {
-            const isSelected = effectiveSelectedId === acc.id;
-            const isDark = isSelected;
-            return (
-              <button
-                key={acc.id}
-                type="button"
-                onClick={() => setSelectedId(acc.id)}
-                className={`flex flex-col gap-4 rounded-2xl border p-5 text-left shadow-sm transition ${
-                  isDark
-                    ? "border-[#0F172B] bg-[#0F172B] shadow-md"
-                    : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1]"
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${
-                      isDark ? "bg-white/10" : "bg-[#F1F5F9]"
-                    }`}
-                  >
-                    <svg
-                      className={`h-5 w-5 ${isDark ? "text-white" : "text-[#45556C]"}`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,383px)_1fr] lg:gap-6">
+        {/* Left: Account cards - horizontal scroll on mobile, vertical on lg */}
+        <motion.div variants={stagger}>
+          {/* Mobile: horizontal carousel */}
+          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 scrollbar-hide lg:hidden" style={{ scrollSnapType: "x mandatory" }}>
+            {accounts.map((acc) => {
+              const isSelected = effectiveSelectedId === acc.id;
+              const isDark = isSelected;
+              return (
+                <motion.button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => setSelectedId(acc.id)}
+                  variants={fadeUp}
+                  transition={fadeUpTransition}
+                  className={`flex w-[75%] min-w-[240px] max-w-[320px] shrink-0 snap-center flex-col gap-3 rounded-2xl border p-4 text-left shadow-sm transition ${
+                    isDark
+                      ? "border-[#0F172B] bg-[#0F172B] shadow-md"
+                      : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        isDark ? "bg-white/10" : "bg-[#F1F5F9]"
+                      }`}
                     >
-                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
-                      <path d="M9 22V12h6v10" />
-                    </svg>
+                      <svg
+                        className={`h-4 w-4 ${isDark ? "text-white" : "text-[#45556C]"}`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
+                        <path d="M9 22V12h6v10" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-normal ${isDark ? "text-white" : "text-[#45556C]"}`}>{acc.name}</p>
+                      <p className={`text-[11px] font-normal ${isDark ? "text-white/60" : "text-[#90A1B9]"}`}>
+                        •••• {acc.lastFour}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-base font-normal ${isDark ? "text-white" : "text-[#45556C]"}`}>{acc.name}</p>
-                    <p className={`text-xs font-normal ${isDark ? "text-white/60" : "text-[#90A1B9]"}`}>
-                      •••• {acc.lastFour}
-                    </p>
+                  <p className={`text-xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#45556C]"}`}>
+                    {formatBalance(acc.balance)}
+                  </p>
+                </motion.button>
+              );
+            })}
+          </div>
+          {/* Desktop: vertical stack */}
+          <div className="hidden flex-col gap-4 lg:flex">
+            {accounts.map((acc) => {
+              const isSelected = effectiveSelectedId === acc.id;
+              const isDark = isSelected;
+              return (
+                <motion.button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => setSelectedId(acc.id)}
+                  variants={fadeUp}
+                  transition={fadeUpTransition}
+                  whileHover={{ y: -4, boxShadow: "0 8px 30px rgba(0,0,0,0.08)", transition: { type: "spring", stiffness: 300, damping: 20 } }}
+                  className={`flex flex-col gap-4 rounded-2xl border p-5 text-left shadow-sm transition ${
+                    isDark
+                      ? "border-[#0F172B] bg-[#0F172B] shadow-md"
+                      : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1]"
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${
+                        isDark ? "bg-white/10" : "bg-[#F1F5F9]"
+                      }`}
+                    >
+                      <svg
+                        className={`h-5 w-5 ${isDark ? "text-white" : "text-[#45556C]"}`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
+                        <path d="M9 22V12h6v10" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-base font-normal ${isDark ? "text-white" : "text-[#45556C]"}`}>{acc.name}</p>
+                      <p className={`text-xs font-normal ${isDark ? "text-white/60" : "text-[#90A1B9]"}`}>
+                        •••• {acc.lastFour}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <p className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#45556C]"}`}>
-                  {formatBalance(acc.balance)}
-                </p>
-              </button>
-            );
-          })}
-        </div>
+                  <p className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#45556C]"}`}>
+                    {formatBalance(acc.balance)}
+                  </p>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
 
         {/* Right: Detail panel */}
-        <div className="flex flex-col gap-6">
+        <motion.div className="flex flex-col gap-6" variants={stagger}>
           {/* Balance card */}
-          <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-8 shadow-sm">
-            <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <motion.div
+            className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm sm:p-6 lg:p-8"
+            variants={fadeUp}
+            transition={fadeUpTransition}
+            whileHover={{ y: -4, boxShadow: "0 8px 30px rgba(0,0,0,0.08)", transition: { type: "spring", stiffness: 300, damping: 20 } }}
+          >
+            <div className="mb-4 flex flex-col gap-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-normal uppercase tracking-wider text-[#62748E]">Current Balance</p>
-                <p className="mt-2 text-[36px] font-bold leading-tight text-[#0F172B]">
+                <p className="text-xs font-normal uppercase tracking-wider text-[#62748E] sm:text-sm">Current Balance</p>
+                <p className="mt-1 text-2xl font-bold leading-tight text-[#0F172B] sm:mt-2 sm:text-[36px]">
                   {selected ? formatBalance(selected.balance) : "$0.00"}
                 </p>
                 <p className="mt-2 flex items-center gap-2 text-sm text-[#62748E]">
@@ -327,25 +412,29 @@ export default function AccountsPage() {
                   </span>
                 </p>
               </div>
-              <div className="mt-4 flex gap-2 sm:mt-0">
-                <Link
-                  href="/dashboard/transfers"
-                  className="inline-flex h-[38px] items-center justify-center rounded-[10px] bg-[#155DFC] px-4 text-sm font-medium text-white transition hover:bg-[#1247d4]"
-                >
-                  Transfer Funds
-                </Link>
-                <button
+              <div className="mt-3 flex gap-2 sm:mt-0">
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Link
+                    href="/dashboard/transfers"
+                    className="inline-flex h-[38px] items-center justify-center rounded-[10px] bg-[#155DFC] px-4 text-sm font-medium text-white transition hover:bg-[#1247d4]"
+                  >
+                    Transfer Funds
+                  </Link>
+                </motion.div>
+                <motion.button
                   type="button"
                   className="inline-flex h-[38px] items-center justify-center rounded-[10px] border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#314158] transition hover:bg-[#F8FAFC]"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                 >
                   Pay Bills
-                </button>
+                </motion.button>
               </div>
             </div>
 
             {/* Account details row */}
             {selected && (
-              <div className="flex flex-wrap gap-6 border-t border-[#F1F5F9] pt-6">
+              <div className="flex flex-wrap gap-4 border-t border-[#F1F5F9] pt-4 sm:gap-6 sm:pt-6">
                 <div>
                   <p className="text-xs font-normal text-[#90A1B9]">Account Number</p>
                   <p className="mt-1 font-mono text-sm text-[#314158]">{selected.accountNumber}</p>
@@ -380,15 +469,20 @@ export default function AccountsPage() {
                 )}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Tabs + Transactions / Details */}
-          <div className="flex-1 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+          <motion.div
+            className="flex-1 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm"
+            variants={fadeUp}
+            transition={{ ...fadeUpTransition, delay: 0.1 }}
+            whileHover={{ y: -4, boxShadow: "0 8px 30px rgba(0,0,0,0.08)", transition: { type: "spring", stiffness: 300, damping: 20 } }}
+          >
             <div className="flex border-b border-[#E2E8F0]">
               <button
                 type="button"
                 onClick={() => setTab("transactions")}
-                className={`px-6 py-4 text-sm font-medium transition ${
+                className={`px-4 py-3 text-sm font-medium transition sm:px-6 sm:py-4 ${
                   tab === "transactions"
                     ? "border-b-2 border-[#155DFC] text-[#155DFC]"
                     : "text-[#62748E] hover:text-[#0F172B]"
@@ -399,7 +493,7 @@ export default function AccountsPage() {
               <button
                 type="button"
                 onClick={() => setTab("details")}
-                className={`px-6 py-4 text-sm font-medium transition ${
+                className={`px-4 py-3 text-sm font-medium transition sm:px-6 sm:py-4 ${
                   tab === "details"
                     ? "border-b-2 border-[#155DFC] text-[#155DFC]"
                     : "text-[#62748E] hover:text-[#0F172B]"
@@ -409,9 +503,9 @@ export default function AccountsPage() {
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {tab === "transactions" && (
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative flex-1">
                       <span className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90A1B9]">
@@ -429,30 +523,58 @@ export default function AccountsPage() {
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button
+                      <motion.button
                         type="button"
                         className="inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#45556C] transition hover:bg-[#F8FAFC]"
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                       >
                         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                           <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
                         </svg>
                         Filter
-                      </button>
-                      <button
+                      </motion.button>
+                      <motion.button
                         type="button"
                         className="inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#45556C] transition hover:bg-[#F8FAFC]"
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                       >
                         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
                         </svg>
                         Export
-                      </button>
+                      </motion.button>
                     </div>
                   </div>
 
                   {transactionsLoading ? (
-                    <div className="flex min-h-[200px] items-center justify-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#155DFC] border-r-transparent" />
+                    <div className="flex min-h-[200px] flex-col items-center justify-center gap-5">
+                      <motion.div
+                        animate={{ scale: [1, 1.1, 1], opacity: [0.85, 1, 0.85] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <Image
+                          src="/Container.svg"
+                          alt="Loading"
+                          width={48}
+                          height={48}
+                          className="h-12 w-12"
+                          priority
+                        />
+                      </motion.div>
+                      <motion.div
+                        className="h-1 w-24 overflow-hidden rounded-full bg-[#E2E8F0]"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2, duration: 0.3 }}
+                      >
+                        <motion.div
+                          className="h-full w-1/3 rounded-full bg-[#155DFC]"
+                          animate={{ x: ["0%", "200%"] }}
+                          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                        />
+                      </motion.div>
                     </div>
                   ) : transactionsError ? (
                     <InlineError
@@ -465,30 +587,34 @@ export default function AccountsPage() {
                     </div>
                   ) : (
                     <ul className="space-y-1">
-                      {filteredTransactions.map((tx) => (
-                        <li
+                      {filteredTransactions.map((tx, i) => (
+                        <motion.li
                           key={tx.id}
-                          className="flex items-center justify-between gap-4 rounded-[14px] border border-transparent px-4 py-3 transition hover:bg-[#F8FAFC]"
+                          className="flex items-center justify-between gap-3 rounded-[14px] border border-transparent px-2 py-2.5 transition sm:gap-4 sm:px-4 sm:py-3"
+                          initial={{ opacity: 0, x: 12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}
+                          whileHover={{ backgroundColor: "rgba(248,250,252,1)", x: 4, transition: { duration: 0.15 } }}
                         >
-                          <div className="flex items-center gap-4">
+                          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                             <TransactionIcon
                               type={getCategoryIcon(tx.category)}
                               bg={getIconBg(tx.category)}
                             />
-                            <div>
-                              <p className="font-medium text-[#0F172B]">{tx.merchant}</p>
-                              <p className="text-xs text-[#62748E]">{tx.date}</p>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-[#0F172B] sm:text-base">{tx.merchant}</p>
+                              <p className="text-[11px] text-[#62748E] sm:text-xs">{tx.date}</p>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="shrink-0 text-right">
                             <p
-                              className={`font-bold ${tx.amount >= 0 ? "text-[#00C950]" : "text-[#0F172B]"}`}
+                              className={`text-sm font-bold sm:text-base ${tx.amount >= 0 ? "text-[#00C950]" : "text-[#0F172B]"}`}
                             >
                               {formatCurrency(tx.amount)}
                             </p>
-                            <p className="text-xs font-normal uppercase text-[#90A1B9]">{tx.category}</p>
+                            <p className="text-[11px] font-normal uppercase text-[#90A1B9] sm:text-xs">{tx.category}</p>
                           </div>
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
                   )}
@@ -548,9 +674,9 @@ export default function AccountsPage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }

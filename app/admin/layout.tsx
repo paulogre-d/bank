@@ -54,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </svg>
           </button>
           <Link href="/admin" className="text-lg font-bold text-[#0F172B]">
-            VyrBank Admin
+            Vertex Premium Admin
           </Link>
         </div>
         <nav className="flex flex-col gap-1 p-4">

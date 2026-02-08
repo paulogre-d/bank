@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopNav from "./TopNav";
 
@@ -9,10 +9,16 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Start closed; open on desktop after hydration
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    // Open sidebar by default only on desktop
+    if (window.innerWidth >= 1024) setSidebarOpen(true);
+  }, []);
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
+    <div className="flex min-h-screen overflow-x-hidden bg-[#F8FAFC]">
       <div
         className={`fixed left-0 top-0 z-20 h-screen w-64 shrink-0 transition-transform duration-200 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -20,7 +26,10 @@ export default function DashboardLayout({
       >
         <Sidebar
           onMenuClick={() => setSidebarOpen((o) => !o)}
-          onLinkClick={() => setSidebarOpen(false)}
+          onLinkClick={() => {
+            // Only close sidebar on mobile; keep open on desktop
+            if (window.innerWidth < 1024) setSidebarOpen(false);
+          }}
         />
       </div>
 
@@ -35,7 +44,7 @@ export default function DashboardLayout({
       )}
 
       <div
-        className={`flex min-h-screen flex-1 flex-col transition-all duration-200 ${
+        className={`flex min-h-screen min-w-0 flex-1 flex-col transition-all duration-200 ${
           sidebarOpen ? "lg:ml-64" : ""
         }`}
       >
@@ -43,7 +52,7 @@ export default function DashboardLayout({
           onMenuClick={() => setSidebarOpen((o) => !o)}
           sidebarCollapsed={!sidebarOpen}
         />
-        <main className="flex-1 p-4 lg:p-8">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );

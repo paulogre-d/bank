@@ -3,12 +3,25 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import TransferSuccessModal from "@/app/components/TransferSuccessModal";
 import { getAuthHeader } from "@/lib/auth/client";
 import { useAccounts, useInvalidateDashboard, useInvalidateAccounts } from "@/lib/api/hooks";
 import { TRANSACTION_CATEGORIES } from "@/lib/constants/transactions";
 import { TransfersSkeleton } from "@/components/skeletons/TransfersSkeleton";
 import { InlineError } from "@/components/InlineError";
+
+// --- Animation variants (matching Dashboard) ---
+const stagger = {
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const fadeUp = {
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+};
+
+const fadeUpTransition = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
 
 type AccountOption = { id: string; name: string; lastFour: string; balance: string };
 
@@ -364,23 +377,37 @@ export default function TransfersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8 px-0 pt-0 md:px-0 md:pt-0">
-      <h1 className="text-2xl font-bold text-[#0F172B]">Move Money</h1>
+    <motion.div
+      className="flex flex-col gap-5 sm:gap-8"
+      initial="initial"
+      animate="animate"
+      variants={stagger}
+    >
+      <motion.h1
+        className="text-xl font-bold text-[#0F172B] sm:text-2xl"
+        variants={fadeUp}
+        transition={fadeUpTransition}
+      >
+        Move Money
+      </motion.h1>
 
-      {/* Transfer type cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+      {/* Transfer type cards - horizontal scroll on mobile */}
+      <motion.div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:pb-0" variants={stagger}>
         {TRANSFER_TYPES.map((type) => {
           const isSelected = transferType === type.id;
           const isInternal = type.id === "internal";
           return (
-            <button
+            <motion.button
               key={type.id}
               type="button"
+              variants={fadeUp}
+              transition={fadeUpTransition}
+              whileHover={{ y: -4, transition: { type: "spring", stiffness: 300, damping: 20 } }}
               onClick={() => {
                 setTransferType(type.id);
                 setShowReview(false);
               }}
-              className={`flex h-[150px] flex-col items-start rounded-2xl border p-6 text-left transition ${
+              className={`flex h-auto min-h-[120px] w-[60%] min-w-[200px] max-w-[260px] shrink-0 flex-col items-start rounded-2xl border p-4 text-left transition sm:h-[150px] sm:w-auto sm:min-w-0 sm:max-w-none sm:p-6 ${
                 isSelected
                   ? "border-[#155DFC] bg-[#155DFC] shadow-[0px_4px_6px_-4px_rgba(21,93,252,0.2),0px_10px_15px_-3px_rgba(21,93,252,0.2)]"
                   : "border-[#E2E8F0] bg-white shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)] hover:border-[#CBD5E1]"
@@ -400,27 +427,33 @@ export default function TransfersPage() {
                 />
               </div>
               <p
-                className={`mt-5 text-lg font-bold ${
+                className={`mt-3 text-base font-bold sm:mt-5 sm:text-lg ${
                   isSelected ? "text-white" : "text-[#45556C]"
                 }`}
               >
                 {type.label}
               </p>
               <p
-                className={`mt-1 text-sm font-normal ${
+                className={`mt-0.5 text-xs font-normal sm:mt-1 sm:text-sm ${
                   isSelected ? "text-[#DBEAFE]" : "text-[#62748E]"
                 }`}
               >
                 {type.subtitle}
               </p>
-            </button>
+            </motion.button>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Review Transaction card - shows when Review Transfer clicked */}
       {showReview && (
-        <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white px-8 py-0 shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)] md:px-16">
+        <motion.div
+          className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white px-4 py-0 shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)] sm:px-8 md:px-16"
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={fadeUpTransition}
+        >
           <div className="flex flex-col gap-6 py-8">
             <h2 className="text-center text-xl font-bold text-[#0F172B]">Review Transaction</h2>
             <div className="rounded-2xl bg-[#F8FAFC] p-6">
@@ -487,13 +520,19 @@ export default function TransfersPage() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Form card - Internal Transfer */}
       {transferType === "internal" && !showReview && (
-        <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]">
-          <div className="flex flex-col gap-8 p-8">
+        <motion.div
+          className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]"
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={fadeUpTransition}
+        >
+          <div className="flex flex-col gap-5 p-4 sm:gap-8 sm:p-8">
             {/* From / To Account row */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <AccountSelect
@@ -537,18 +576,18 @@ export default function TransfersPage() {
                     value={amount}
                     onChange={handleAmountChange}
                     placeholder="0.00"
-                    className="h-full w-full rounded-2xl border border-[#E2E8F0] bg-white pl-14 pr-4 text-center text-[36px] font-bold leading-tight text-[#0F172B] placeholder:text-[#E2E8F0] outline-none focus:border-[#155DFC] focus:ring-2 focus:ring-[#155DFC]/20"
+                    className="h-full w-full rounded-2xl border border-[#E2E8F0] bg-white pl-14 pr-4 text-center text-2xl font-bold leading-tight text-[#0F172B] placeholder:text-[#E2E8F0] outline-none focus:border-[#155DFC] focus:ring-2 focus:ring-[#155DFC]/20 sm:text-[36px]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-normal uppercase text-[#62748E]">Frequency</label>
                   <select
                     value={frequency}
                     onChange={(e) => setFrequency(e.target.value)}
-                    className="h-12 rounded-[14px] border border-[#E2E8F0] bg-white px-4 text-sm font-normal text-[#45556C] shadow-sm outline-none focus:border-[#155DFC]"
+                    className="h-11 rounded-[14px] border border-[#E2E8F0] bg-white px-4 text-sm font-normal text-[#45556C] shadow-sm outline-none focus:border-[#155DFC] sm:h-12"
                   >
                     {FREQUENCY_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>
@@ -559,7 +598,7 @@ export default function TransfersPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-normal uppercase text-[#62748E]">Date</label>
-                  <div className="relative flex h-12 items-center">
+                  <div className="relative flex h-11 items-center sm:h-12">
                     <input
                       type="date"
                       value={date}
@@ -581,7 +620,7 @@ export default function TransfersPage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="h-12 rounded-[14px] border border-[#E2E8F0] bg-white px-4 text-sm font-normal text-[#45556C] shadow-sm outline-none focus:border-[#155DFC]"
+                    className="h-11 rounded-[14px] border border-[#E2E8F0] bg-white px-4 text-sm font-normal text-[#45556C] shadow-sm outline-none focus:border-[#155DFC] sm:h-12"
                   >
                     {TRANSACTION_CATEGORIES.map((c) => (
                       <option key={c.value} value={c.value}>
@@ -596,19 +635,25 @@ export default function TransfersPage() {
                 type="button"
                 onClick={handleReviewTransfer}
                 disabled={!canReviewInternal}
-                className="h-14 w-full rounded-[14px] bg-[#155DFC] text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(21,93,252,0.2),0px_10px_15px_-3px_rgba(21,93,252,0.2)] transition hover:bg-[#1247d4] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-12 w-full rounded-[14px] bg-[#155DFC] text-sm font-bold text-white shadow-[0px_4px_6px_-4px_rgba(21,93,252,0.2),0px_10px_15px_-3px_rgba(21,93,252,0.2)] transition hover:bg-[#1247d4] disabled:opacity-50 disabled:cursor-not-allowed sm:h-14 sm:text-base"
               >
                 Review Transfer
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Form card - Send to Person */}
       {transferType === "person" && !showReview && (
-        <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]">
-          <div className="flex flex-col gap-8 p-8">
+        <motion.div
+          className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]"
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={fadeUpTransition}
+        >
+          <div className="flex flex-col gap-5 p-4 sm:gap-8 sm:p-8">
             {/* From Account / To Account row */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <AccountSelect
@@ -730,13 +775,19 @@ export default function TransfersPage() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Form card - Wire Transfer */}
       {transferType === "wire" && !showReview && (
-        <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]">
-          <div className="flex flex-col gap-8 p-8">
+        <motion.div
+          className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]"
+          variants={fadeUp}
+          initial="initial"
+          animate="animate"
+          transition={fadeUpTransition}
+        >
+          <div className="flex flex-col gap-5 p-4 sm:gap-8 sm:p-8">
             {/* Row 1: From Account | To Account */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <AccountSelect
@@ -874,7 +925,7 @@ export default function TransfersPage() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       <TransferSuccessModal
@@ -897,6 +948,6 @@ export default function TransfersPage() {
         beneficiaryName={transferType === "person" ? beneficiaryName : undefined}
         onMakeAnother={handleMakeAnotherTransfer}
       />
-    </div>
+    </motion.div>
   );
 }

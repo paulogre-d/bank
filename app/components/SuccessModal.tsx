@@ -19,7 +19,7 @@ export default function SuccessModal({
   isOpen,
   onClose,
   title = "Account Created!",
-  message = "Your VyrBank account has been successfully created. You can now sign in to access your account.",
+  message = "Your Vertex Premium account has been successfully created. You can now sign in to access your account.",
   actionLabel = "Continue to Sign In",
   actionHref,
   onActionClick,

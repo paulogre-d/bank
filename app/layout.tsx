@@ -16,9 +16,49 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vertex Premium - Banking for the Digital Age",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://vertexpremium.com"
+  ),
+  title: {
+    default: "Vertex Premium - Banking for the Digital Age",
+    template: "%s | Vertex Premium",
+  },
   description:
     "Experience secure, seamless, and smart banking designed for your lifestyle. Join over 2 million users trusting Vertex Premium.",
+  keywords: [
+    "banking",
+    "digital banking",
+    "online banking",
+    "Vertex Premium",
+    "fintech",
+    "mobile banking",
+  ],
+  authors: [{ name: "Vertex Premium" }],
+  creator: "Vertex Premium",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "Vertex Premium",
+    title: "Vertex Premium - Banking for the Digital Age",
+    description:
+      "Experience secure, seamless, and smart banking designed for your lifestyle. Join over 2 million users trusting Vertex Premium.",
+    images: ["/images/sidebar/logo-icon.svg"],
+  },
+  twitter: {
+    card: "summary",
+    title: "Vertex Premium - Banking for the Digital Age",
+    description:
+      "Experience secure, seamless, and smart banking designed for your lifestyle. Join over 2 million users trusting Vertex Premium.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/images/sidebar/logo-icon.svg",
+    shortcut: "/images/sidebar/logo-icon.svg",
+    apple: "/images/sidebar/logo-icon.svg",
+  },
 };
 
 export default function RootLayout({

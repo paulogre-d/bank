@@ -139,7 +139,7 @@ export default function AdminOverviewPage() {
                     <p className="text-xs text-[#62748E]">{user.email}</p>
                   </div>
                 </div>
-                <span className="font-mono text-xs text-[#94A3B8]">{user.accountNumber}</span>
+                <span className="font-mono text-xs text-[#94A3B8]">{user.accountNumber}.</span>
               </Link>
             ))}
           </div>

@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+
+function getResend(): Resend | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  if (!resendClient) resendClient = new Resend(apiKey);
+  return resendClient;
+}
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vertex Premium Bank <onboarding@resend.dev>';
 const FROM_NAME = 'Vertex Premium Bank';
@@ -18,7 +25,8 @@ export interface SendWelcomeEmailParams {
  * Does not throw; logs errors so registration can succeed even if email fails.
  */
 export async function sendWelcomeEmail(params: SendWelcomeEmailParams): Promise<{ ok: boolean; error?: string }> {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn('[mailer] RESEND_API_KEY not set; skipping welcome email');
     return { ok: false, error: 'RESEND_API_KEY not set' };
   }

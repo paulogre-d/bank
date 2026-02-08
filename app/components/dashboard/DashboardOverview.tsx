@@ -13,6 +13,8 @@ import {
   IconLoan,
   IconScan,
   IconStatements,
+  IconEye,
+  IconEyeOff,
 } from "./icons";
 import { useAuthStore } from "@/store/auth";
 import type { DashboardAccount } from "@/store/dashboard";
@@ -164,10 +166,14 @@ function AccountCard({
   account,
   variant,
   href,
+  balanceVisible,
+  onToggleBalance,
 }: {
   account: DashboardAccount;
   variant: "blue" | "white" | "dark";
   href: string;
+  balanceVisible: boolean;
+  onToggleBalance: () => void;
 }) {
   const isDark = variant === "dark";
   const isBlue = variant === "blue";
@@ -190,19 +196,39 @@ function AccountCard({
         <div className="mb-4 flex items-start justify-between sm:mb-8">
           <div>
             <p className={`text-xs font-normal sm:text-sm ${textSecondary}`}>{account.name}</p>
-            <p className={`text-xl font-bold tracking-tight sm:text-2xl ${textPrimary}`}>{balanceStr}</p>
+            <p className={`text-xl font-bold tracking-tight sm:text-2xl ${textPrimary}`}>
+              {balanceVisible ? balanceStr : "••••••"}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={(e) => e.stopPropagation()}
-            className={`rounded-full p-1.5 ${isDark || isBlue ? "text-white/80 hover:bg-white/10" : "text-[#62748E] hover:bg-slate-100"}`}
-            aria-label="More options"
-          >
-            <IconMore className={isDark || isBlue ? "text-white" : "text-[#62748E]"} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleBalance();
+              }}
+              className={`rounded-full p-1.5 ${isDark || isBlue ? "text-white/80 hover:bg-white/10" : "text-[#62748E] hover:bg-slate-100"}`}
+              aria-label={balanceVisible ? "Hide balance" : "Show balance"}
+            >
+              {balanceVisible ? (
+                <IconEye className={isDark || isBlue ? "text-white" : "text-[#62748E]"} />
+              ) : (
+                <IconEyeOff className={isDark || isBlue ? "text-white" : "text-[#62748E]"} />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className={`rounded-full p-1.5 ${isDark || isBlue ? "text-white/80 hover:bg-white/10" : "text-[#62748E] hover:bg-slate-100"}`}
+              aria-label="More options"
+            >
+              <IconMore className={isDark || isBlue ? "text-white" : "text-[#62748E]"} />
+            </button>
+          </div>
         </div>
         <div className="flex items-end justify-between">
-          <p className={`text-sm ${textMuted}`}>•••• {account.lastFour}</p>
+          <p className={`text-sm ${textMuted}`}>{balanceVisible ? `•••• ${account.lastFour}` : "•••• ••••"}</p>
           {account.accountType !== "credit" && account.balance >= 0 && (
             <div className="flex items-center gap-2 rounded-full bg-[rgba(0,201,80,0.2)] px-3 py-1">
               <IconChartUp className="text-[#00C950]" />
@@ -250,6 +276,7 @@ export default function DashboardOverview() {
   }, [banners.length]);
 
   const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>("thisWeek");
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const chartData = useMemo(() => {
     if (analyticsPeriod === "thisWeek") return spendingAnalytics.byDay ?? [];
     if (analyticsPeriod === "lastMonth") return spendingAnalytics.byWeek ?? [];
@@ -362,6 +389,8 @@ export default function DashboardOverview() {
                     account={acc}
                     variant={cardVariants[i % 3]}
                     href={acc.accountType === "credit" ? "/dashboard/cards" : "/dashboard/accounts"}
+                    balanceVisible={balanceVisible}
+                    onToggleBalance={() => setBalanceVisible((v) => !v)}
                   />
                 </div>
               ))}
@@ -394,6 +423,8 @@ export default function DashboardOverview() {
                 account={acc}
                 variant={cardVariants[i % 3]}
                 href={acc.accountType === "credit" ? "/dashboard/cards" : "/dashboard/accounts"}
+                balanceVisible={balanceVisible}
+                onToggleBalance={() => setBalanceVisible((v) => !v)}
               />
             ))}
           </motion.div>

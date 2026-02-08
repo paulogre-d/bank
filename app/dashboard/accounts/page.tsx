@@ -301,7 +301,7 @@ export default function AccountsPage() {
                   onClick={() => setSelectedId(acc.id)}
                   variants={fadeUp}
                   transition={fadeUpTransition}
-                  className={`flex w-[75%] min-w-[240px] max-w-[320px] shrink-0 snap-center flex-col gap-3 rounded-2xl border p-4 text-left shadow-sm transition ${
+                  className={`flex w-full shrink-0 snap-center flex-col gap-3 rounded-2xl border p-4 text-left shadow-sm transition ${
                     isDark
                       ? "border-[#0F172B] bg-[#0F172B] shadow-md"
                       : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1]"

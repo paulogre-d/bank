@@ -8,11 +8,6 @@ import {
   IconAdd,
   IconMore,
   IconChartUp,
-  IconTransfer,
-  IconPayBills,
-  IconLoan,
-  IconScan,
-  IconStatements,
   IconEye,
   IconEyeOff,
 } from "./icons";
@@ -49,11 +44,11 @@ function getGreeting() {
 }
 
 const quickActions = [
-  { label: "Transfer", href: "/dashboard/transfers", icon: IconTransfer, iconColor: "#155DFC" },
-  { label: "Pay Bills", href: "/dashboard/accounts", icon: IconPayBills, iconColor: "#E17100" },
-  { label: "Loan", href: "/dashboard/loans", icon: IconLoan, iconColor: "#009966" },
-  { label: "Scan QR", href: "/dashboard", icon: IconScan, iconColor: "#9810FA" },
-  { label: "Statement", href: "/dashboard/accounts", icon: IconStatements, iconColor: "#4F39F6" },
+  { label: "Transfer", href: "/dashboard/transfers", iconSrc: "/images/quick-actions/transfer.svg", iconColor: "#155DFC" },
+  { label: "Pay Bills", href: "/dashboard/accounts", iconSrc: "/images/quick-actions/pay-bills.svg", iconColor: "#E17100" },
+  { label: "Loan", href: "/dashboard/loans", iconSrc: "/images/quick-actions/loan.svg", iconColor: "#009966" },
+  { label: "Scan QR", href: "/dashboard", iconSrc: "/images/quick-actions/scan-qr.svg", iconColor: "#9810FA" },
+  { label: "Statement", href: "/dashboard/accounts", iconSrc: "/images/quick-actions/statement.svg", iconColor: "#4F39F6" },
 ];
 
 const CATEGORY_ICON_BG: Record<string, string> = {
@@ -362,7 +357,7 @@ export default function DashboardOverview() {
             Here&apos;s what&apos;s happening with your money today.
           </p>
         </div>
-        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+        <motion.div className="hidden sm:block" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
           <Link
             href="/dashboard/accounts"
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-[#0F172B] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1a2744] sm:w-auto sm:text-base"
@@ -384,7 +379,7 @@ export default function DashboardOverview() {
               style={{ scrollSnapType: "x mandatory" }}
             >
               {visibleAccounts.map((acc, i) => (
-                <div key={acc.id} className="w-[80%] min-w-[260px] shrink-0 snap-center">
+                <div key={acc.id} className="w-full shrink-0 snap-center">
                   <AccountCard
                     account={acc}
                     variant={cardVariants[i % 3]}
@@ -454,34 +449,37 @@ export default function DashboardOverview() {
               className="flex flex-nowrap gap-3 overflow-x-auto pb-1 scrollbar-hide sm:gap-6"
               variants={stagger}
             >
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <motion.div
-                    key={action.label}
-                    className="shrink-0"
-                    variants={fadeUp}
-                    transition={fadeUpTransition}
-                    whileHover={{ y: -4, transition: { type: "spring", stiffness: 300, damping: 20 } }}
-                    whileTap={{ scale: 0.97 }}
+              {quickActions.map((action) => (
+                <motion.div
+                  key={action.label}
+                  className="shrink-0"
+                  variants={fadeUp}
+                  transition={fadeUpTransition}
+                  whileHover={{ y: -4, transition: { type: "spring", stiffness: 300, damping: 20 } }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Link
+                    href={action.href}
+                    className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-[18px] border border-[#E2E8F0] bg-white px-4 py-3 shadow-sm transition hover:border-[#155DFC]/30 hover:shadow-md min-h-[90px] min-w-[100px] sm:min-h-[110px] sm:min-w-[142px] sm:px-5 sm:py-4"
                   >
-                    <Link
-                      href={action.href}
-                      className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-[18px] border border-[#E2E8F0] bg-white px-4 py-3 shadow-sm transition hover:border-[#155DFC]/30 hover:shadow-md min-h-[90px] min-w-[100px] sm:min-h-[110px] sm:min-w-[142px] sm:px-5 sm:py-4"
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-[14px] sm:h-12 sm:w-12 sm:rounded-[18px]"
+                    
                     >
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-[14px] [&_svg]:h-5 [&_svg]:w-5 sm:h-12 sm:w-12 sm:rounded-[18px] sm:[&_svg]:h-6 sm:[&_svg]:w-6"
-                        style={{ backgroundColor: `${action.iconColor}15`, color: action.iconColor }}
-                      >
-                        <Icon />
-                      </div>
-                      <span className="text-center text-[11px] font-normal text-[#45556C] sm:text-xs">
-                        {action.label}
-                      </span>
-                    </Link>
-                  </motion.div>
-                );
-              })}
+                      <Image
+                        src={action.iconSrc}
+                        alt=""
+                        width={24}
+                        height={24}
+                        className="h-5 w-5 sm:h-6 sm:w-6"
+                      />
+                    </div>
+                    <span className="text-center text-[11px] font-normal text-[#45556C] sm:text-xs">
+                      {action.label}
+                    </span>
+                  </Link>
+                </motion.div>
+              ))}
             </motion.div>
           </motion.section>
 

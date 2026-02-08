@@ -20,7 +20,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen overflow-x-hidden bg-[#F8FAFC]">
       <div
-        className={`fixed left-0 top-0 z-20 h-screen w-64 shrink-0 transition-transform duration-200 ease-in-out ${
+        className={`fixed left-0 top-0 z-40 h-screen w-64 shrink-0 transition-transform duration-200 ease-in-out lg:z-20 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -30,6 +30,7 @@ export default function DashboardLayout({
             // Only close sidebar on mobile; keep open on desktop
             if (window.innerWidth < 1024) setSidebarOpen(false);
           }}
+          sidebarOpen={sidebarOpen}
         />
       </div>
 
@@ -37,7 +38,7 @@ export default function DashboardLayout({
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0 z-10 bg-black/20 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/20 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           tabIndex={-1}
         />

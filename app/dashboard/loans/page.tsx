@@ -2,6 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { motion } from "framer-motion";
+
+// --- Animation variants (matching Dashboard) ---
+const stagger = {
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const fadeUp = {
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+};
+
+const fadeUpTransition = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
 
 const LOAN_TYPES = [
   { id: "personal", label: "Personal Loan", rate: "5.99%", rateLabel: "Rates as low as 5.99%" },
@@ -103,9 +116,16 @@ export default function LoansPage() {
 
   if (submitted) {
     return (
-      <div className="flex flex-col gap-8">
-        <h1 className="text-2xl font-bold text-[#0F172B]">Application Submitted</h1>
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-8 shadow-sm">
+      <motion.div
+        className="flex flex-col gap-8"
+        initial="initial"
+        animate="animate"
+        variants={stagger}
+      >
+        <motion.h1 className="text-2xl font-bold text-[#0F172B]" variants={fadeUp} transition={fadeUpTransition}>
+          Application Submitted
+        </motion.h1>
+        <motion.div className="rounded-2xl border border-[#E2E8F0] bg-white p-8 shadow-sm" variants={fadeUp} transition={fadeUpTransition}>
           <p className="text-[#62748E]">
             Thank you for your application. A specialist will contact you within 1–2 business days.
           </p>
@@ -115,23 +135,33 @@ export default function LoansPage() {
           >
             Start New Application
           </Link>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-bold text-[#0F172B]">Apply for a Loan</h1>
-        <p className="mt-1 text-base text-[#62748E]">
+    <motion.div
+      className="flex flex-col gap-5 sm:gap-8"
+      initial="initial"
+      animate="animate"
+      variants={stagger}
+    >
+      <motion.div variants={fadeUp} transition={fadeUpTransition}>
+        <h1 className="text-xl font-bold text-[#0F172B] sm:text-2xl">Apply for a Loan</h1>
+        <p className="mt-0.5 text-sm text-[#62748E] sm:mt-1 sm:text-base">
           Fast decisions, competitive rates, and no hidden fees.
         </p>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_340px] lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px] lg:items-start lg:gap-8">
         {/* Main form card */}
-        <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+        <motion.div
+          className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm"
+          variants={fadeUp}
+          transition={fadeUpTransition}
+          whileHover={{ y: -4, boxShadow: "0 8px 30px rgba(0,0,0,0.08)", transition: { type: "spring", stiffness: 300, damping: 20 } }}
+        >
           <div className="flex h-2 w-full overflow-hidden rounded-t-2xl border-b border-[#F1F5F9]">
             <div
               className="bg-[#155DFC] transition-all duration-200"
@@ -140,7 +170,7 @@ export default function LoansPage() {
             <div className="flex-1 bg-[#F1F5F9]" />
           </div>
 
-          <div className="p-8">
+          <div className="p-4 sm:p-6 lg:p-8">
             {/* Step 1: Select Loan Type */}
             {step === 1 && (
               <div className="flex flex-col gap-6">
@@ -149,10 +179,12 @@ export default function LoansPage() {
                   {LOAN_TYPES.map((type) => {
                     const selected = loanTypeId === type.id;
                     return (
-                      <button
+                      <motion.button
                         key={type.id}
                         type="button"
                         onClick={() => setLoanTypeId(type.id)}
+                        whileHover={{ y: -4, boxShadow: "0 8px 30px rgba(0,0,0,0.08)", transition: { type: "spring", stiffness: 300, damping: 20 } }}
+                        whileTap={{ scale: 0.97 }}
                         className={`flex min-h-[139px] items-start gap-3 rounded-[14px] border p-4 text-left transition-all ${
                           selected
                             ? "border-2 border-[#155DFC] bg-[rgba(239,246,255,0.5)] shadow-sm"
@@ -170,21 +202,23 @@ export default function LoansPage() {
                           <p className="text-base font-semibold text-[#0F172B]">{type.label}</p>
                           <p className="mt-1 text-sm text-[#62748E]">{type.rateLabel}</p>
                         </div>
-                      </button>
+                      </motion.button>
                     );
                   })}
                 </div>
                 <div className="flex justify-end pt-2">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleNextStep}
                     className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#155DFC] px-5 text-sm font-semibold text-white transition hover:bg-[#1247d4]"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                   >
                     Next Step
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             )}
@@ -228,10 +262,12 @@ export default function LoansPage() {
                     {TERM_OPTIONS.map((opt) => {
                       const selected = termMonths === opt.value;
                       return (
-                        <button
+                        <motion.button
                           key={opt.value}
                           type="button"
                           onClick={() => setTermMonths(opt.value)}
+                          whileHover={{ y: -3, transition: { type: "spring", stiffness: 300, damping: 20 } }}
+                          whileTap={{ scale: 0.95 }}
                           className={`flex min-h-[56px] items-center justify-center rounded-xl border px-4 py-3 text-center text-sm font-medium transition-all ${
                             selected
                               ? "border-2 border-[#155DFC] bg-[#EFF6FF] text-[#155DFC]"
@@ -239,7 +275,7 @@ export default function LoansPage() {
                           }`}
                         >
                           {opt.label}
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -247,23 +283,27 @@ export default function LoansPage() {
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#F1F5F9] pt-6">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleBack}
                     className="inline-flex h-11 min-w-[100px] items-center justify-center rounded-xl border border-[#E2E8F0] bg-white px-5 text-sm font-semibold text-[#334155] transition hover:border-[#CBD5E1] hover:bg-[#F8FAFC]"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                   >
                     Back
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="button"
                     onClick={handleNextStep}
                     className="inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-xl bg-[#155DFC] px-5 text-sm font-semibold text-white transition hover:bg-[#1247d4]"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                   >
                     Next Step
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             )}
@@ -330,25 +370,32 @@ export default function LoansPage() {
                   >
                     Back
                   </button>
-                  <button
+                  <motion.button
                     type="submit"
                     className="inline-flex h-11 min-w-[160px] items-center justify-center rounded-xl bg-[#155DFC] px-5 text-sm font-semibold text-white transition hover:bg-[#1247d4]"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                   >
                     Submit Application
-                  </button>
+                  </motion.button>
                 </div>
               </form>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Summary sidebar */}
-        <div className="flex flex-col gap-6 lg:w-[340px]">
-          <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-[#0F172B] shadow-md">
-            <div className="border-b border-[#334155] px-6 py-5">
-              <h3 className="text-lg font-bold text-white">Summary</h3>
+        <motion.div className="flex flex-col gap-5 sm:gap-6 lg:w-[340px]" variants={stagger}>
+          <motion.div
+            className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-[#0F172B] shadow-md"
+            variants={fadeUp}
+            transition={fadeUpTransition}
+            whileHover={{ y: -4, boxShadow: "0 8px 30px rgba(0,0,0,0.15)", transition: { type: "spring", stiffness: 300, damping: 20 } }}
+          >
+            <div className="border-b border-[#334155] px-4 py-4 sm:px-6 sm:py-5">
+              <h3 className="text-base font-bold text-white sm:text-lg">Summary</h3>
             </div>
-            <dl className="px-6">
+            <dl className="px-4 sm:px-6">
               <div className="flex items-center justify-between gap-4 border-b border-[#334155] py-4">
                 <dt className="text-sm font-normal text-[#94A3B8]">Type</dt>
                 <dd className="text-sm font-medium text-white">{loanType.label}</dd>
@@ -370,21 +417,28 @@ export default function LoansPage() {
                 <dd className="text-2xl font-bold text-white">${displayPayment}</dd>
               </div>
             </dl>
-          </div>
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+          </motion.div>
+          <motion.div
+            className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm sm:p-6"
+            variants={fadeUp}
+            transition={{ ...fadeUpTransition, delay: 0.1 }}
+            whileHover={{ y: -4, boxShadow: "0 8px 30px rgba(0,0,0,0.08)", transition: { type: "spring", stiffness: 300, damping: 20 } }}
+          >
             <h3 className="text-base font-semibold text-[#0F172B]">Need Help?</h3>
             <p className="mt-2 text-sm text-[#62748E]">
               Our loan specialists are available to answer your questions.
             </p>
-            <button
+            <motion.button
               type="button"
               className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-[10px] border border-[#E2E8F0] bg-white text-sm font-semibold text-[#155DFC] transition hover:bg-[#F8FAFC]"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
             >
               Chat with a Specialist
-            </button>
-          </div>
-        </div>
+            </motion.button>
+          </motion.div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }

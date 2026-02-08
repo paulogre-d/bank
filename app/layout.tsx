@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VyrBank - Banking for the Digital Age",
+  title: "Vertex Premium - Banking for the Digital Age",
   description:
-    "Experience secure, seamless, and smart banking designed for your lifestyle. Join over 2 million users trusting VyrBank.",
+    "Experience secure, seamless, and smart banking designed for your lifestyle. Join over 2 million users trusting Vertex Premium.",
 };
 
 export default function RootLayout({

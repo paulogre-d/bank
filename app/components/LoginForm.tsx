@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { useAuth } from "@/contexts/AuthContext";
+import { LoadingOverlay } from "@/components/LoadingOverlay";
 
 const loginSchema = Yup.object().shape({
   accountNumber: Yup.string()
@@ -30,17 +31,19 @@ export default function LoginForm() {
   const router = useRouter();
 
   const inputClassName =
-    "h-[50px] w-full rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] py-3 pl-12 pr-3 text-[#0F172B] placeholder:text-[#90A1B9] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC]";
+    "h-12 w-full min-h-[44px] rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] py-3 pl-11 pr-3 text-base text-[#0F172B] placeholder:text-[#90A1B9] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC] sm:h-[50px] sm:rounded-[14px] sm:pl-12";
   const inputErrorClassName =
-    "h-[50px] w-full rounded-[14px] border-2 border-red-500 bg-[#F8FAFC] py-3 pl-12 pr-3 text-[#0F172B] placeholder:text-[#90A1B9] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC]";
+    "h-12 w-full min-h-[44px] rounded-xl border-2 border-red-500 bg-[#F8FAFC] py-3 pl-11 pr-3 text-base text-[#0F172B] placeholder:text-[#90A1B9] focus:border-[#155DFC] focus:outline-none focus:ring-1 focus:ring-[#155DFC] sm:h-[50px] sm:rounded-[14px] sm:pl-12";
 
   return (
+    <>
+    {isSubmitting && <LoadingOverlay />}
     <div
       id="login"
-      className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg sm:p-10"
+      className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:rounded-3xl sm:p-8 md:p-10"
     >
-      <h2 className="mb-2 text-2xl font-bold text-[#0F172B]">Welcome Back</h2>
-      <p className="mb-6 text-base text-[#45556C]">Securely login to your account</p>
+      <h2 className="mb-1 text-lg font-bold text-[#0F172B] sm:mb-2 sm:text-2xl">Welcome Back</h2>
+      <p className="mb-3 text-sm text-[#45556C] sm:mb-6 sm:text-base">Securely login to your account</p>
       <Formik
         initialValues={initialValues}
         validationSchema={loginSchema}
@@ -64,11 +67,11 @@ export default function LoginForm() {
         validateOnBlur={true}
       >
         {({ errors, touched }) => (
-          <Form className="space-y-6">
+          <Form className="space-y-3 sm:space-y-6">
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-[#314158]">Account Number</label>
               <div className="relative flex items-center">
-                <div className="absolute left-3 flex h-[50px] w-8 items-center justify-center">
+                <div className="absolute left-3 flex h-12 w-8 items-center justify-center sm:h-[50px]">
                   <Image
                     src="/images/icon-account.svg"
                     alt=""
@@ -95,7 +98,7 @@ export default function LoginForm() {
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-[#314158]">Password</label>
               <div className="relative flex items-center">
-                <div className="absolute left-3 flex h-[50px] w-8 items-center justify-center">
+                <div className="absolute left-3 flex h-12 w-8 items-center justify-center sm:h-[50px]">
                   <Image
                     src="/images/icon-password.svg"
                     alt=""
@@ -134,7 +137,7 @@ export default function LoginForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#155DFC] px-4 font-bold text-white shadow-sm transition hover:bg-[#1248d4] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-12 min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#155DFC] px-4 font-bold text-white shadow-sm transition hover:bg-[#1248d4] disabled:cursor-not-allowed disabled:opacity-50 sm:h-[50px] sm:rounded-[14px]"
             >
               {isSubmitting ? 'Signing In...' : 'Sign In'}
               {!isSubmitting && <Image src="/images/icon-arrow-right.svg" alt="" width={16} height={16} />}
@@ -142,10 +145,11 @@ export default function LoginForm() {
           </Form>
         )}
       </Formik>
-      <p className="mt-6 text-center text-xs text-[#90A1B9]">
+      <p className="mt-3 text-center text-xs text-[#90A1B9] sm:mt-6">
         By logging in, you agree to our Terms and Privacy Policy.
       </p>
-      <p className="text-center text-xs text-[#90A1B9]">Protected by reCAPTCHA.</p>
+      <p className="mt-0.5 text-center text-xs text-[#90A1B9] sm:mt-1">Protected by reCAPTCHA.</p>
     </div>
+    </>
   );
 }

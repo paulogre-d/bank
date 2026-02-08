@@ -33,20 +33,8 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#155DFC]">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 40 40"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-              >
-                <path d="M10 15C10 12.2 12.2 10 15 10H25C27.8 10 30 12.2 30 15V25C30 27.8 27.8 30 25 30H15C12.2 30 10 27.8 10 25V15Z" />
-                <path d="M18 21L20 23L24 19" strokeWidth="2" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-[#0F172B]">VyrBank Admin</span>
+            <Image src="/Container.svg" alt="Vertex Premium" width={40} height={40} className="h-10 w-10" />
+            <span className="text-xl font-bold text-[#0F172B]">Vertex Premium Admin</span>
           </Link>
         </div>
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-8 shadow-lg">
@@ -62,7 +50,7 @@ export default function AdminLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@vyrbank.com"
+                placeholder="admin@vertexpremium.com"
                 className="h-12 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-[#0F172B] placeholder:text-[#90A1B9] focus:border-[#155DFC] focus:outline-none focus:ring-2 focus:ring-[#155DFC]/20"
               />
             </div>
@@ -101,7 +89,7 @@ export default function AdminLoginPage() {
         </div>
         <p className="mt-6 text-center">
           <Link href="/" className="text-sm text-[#155DFC] hover:underline">
-            ← Back to VyrBank
+            ← Back to Vertex Premium
           </Link>
         </p>
       </div>

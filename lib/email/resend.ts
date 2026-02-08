@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vertex Premium Bank <onboarding@resend.dev>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vertex Premium Bank <support@vertexpremium.com>';
 const FROM_NAME = 'Vertex Premium Bank';
 
 export interface SendWelcomeEmailParams {

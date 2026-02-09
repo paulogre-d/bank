@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -77,6 +78,10 @@ export default function RootLayout({
             {children}
           </QueryProvider>
         </AuthProvider>
+        <Script
+          src="https://code.jivosite.com/widget/3geR0J8HP2"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
